@@ -3,12 +3,16 @@ import { Upload, Users, Calendar, Send as SendIcon, X } from "lucide-react";
 import { PageHeader, PrimaryButton } from "@/components/common";
 import { BRAND, CONTACT_GROUPS, CONTACT_TAGS, getSmsSegmentCount } from "@/utils";
 
+type RecipientType = "contacts" | "manual" | "upload";
+
 export function SendSMS() {
   const [message, setMessage] = useState("");
+  const [recipientType, setRecipientType] = useState<RecipientType>("contacts");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sendNow, setSendNow] = useState(true);
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
+  const [manualNumbers, setManualNumbers] = useState("");
 
   const characterCount = message.length;
   const segmentCount = getSmsSegmentCount(message);
@@ -18,6 +22,18 @@ export function SendSMS() {
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
   };
+
+  const recipientTabStyle = (active: boolean) =>
+    active
+      ? { borderColor: BRAND.primary, backgroundColor: BRAND.primaryLight }
+      : {};
+
+  const recipientTabClass = (active: boolean) =>
+    `flex-1 px-4 py-2.5 rounded-lg border-2 font-medium transition-colors ${
+      active
+        ? "text-gray-900"
+        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+    }`;
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -59,54 +75,118 @@ export function SendSMS() {
           {/* Recipient Selection */}
           <div className="mb-8">
             <label className="block text-sm font-medium text-gray-900 mb-3">Recipients</label>
-            <div className="space-y-4">
-              <div className="relative">
-                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <select
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg appearance-none bg-white"
-                  style={{ outline: "none" }}
-                >
-                  {CONTACT_GROUPS.map((g) => (
-                    <option key={g.value} value={g.value}>
-                      {g.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              <div>
-                <div className="text-sm text-gray-700 mb-2">Filter by tags:</div>
-                <div className="flex flex-wrap gap-2">
-                  {CONTACT_TAGS.map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => toggleTag(tag)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                        selectedTags.includes(tag) ? "text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      }`}
-                      style={selectedTags.includes(tag) ? { backgroundColor: BRAND.primary } : {}}
-                    >
-                      {tag}
-                      {selectedTags.includes(tag) && <X className="inline-block w-3 h-3 ml-1" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
+            {/* Recipient Type Tabs */}
+            <div className="flex gap-2 mb-4">
               <button
-                className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-gray-700 transition-colors"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = BRAND.primary;
-                  e.currentTarget.style.backgroundColor = BRAND.primaryLight;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "#d1d5db";
-                  e.currentTarget.style.backgroundColor = "transparent";
-                }}
+                onClick={() => setRecipientType("contacts")}
+                className={recipientTabClass(recipientType === "contacts")}
+                style={recipientTabStyle(recipientType === "contacts")}
               >
-                <Upload className="w-5 h-5" />
-                <span className="font-medium">Upload CSV/Excel</span>
+                <Users className="w-4 h-4 inline-block mr-2" />
+                From Contacts
               </button>
+              <button
+                onClick={() => setRecipientType("manual")}
+                className={recipientTabClass(recipientType === "manual")}
+                style={recipientTabStyle(recipientType === "manual")}
+              >
+                Manual Entry
+              </button>
+              <button
+                onClick={() => setRecipientType("upload")}
+                className={recipientTabClass(recipientType === "upload")}
+                style={recipientTabStyle(recipientType === "upload")}
+              >
+                <Upload className="w-4 h-4 inline-block mr-2" />
+                Upload File
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {recipientType === "contacts" && (
+                <>
+                  <div className="relative">
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <select
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg appearance-none bg-white"
+                      style={{ outline: "none" }}
+                    >
+                      {CONTACT_GROUPS.map((g) => (
+                        <option key={g.value} value={g.value}>
+                          {g.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="text-sm text-gray-700 mb-2">Filter by tags:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {CONTACT_TAGS.map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => toggleTag(tag)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                            selectedTags.includes(tag)
+                              ? "text-white"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`}
+                          style={selectedTags.includes(tag) ? { backgroundColor: BRAND.primary } : {}}
+                        >
+                          {tag}
+                          {selectedTags.includes(tag) && <X className="inline-block w-3 h-3 ml-1" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {recipientType === "manual" && (
+                <div>
+                  <textarea
+                    value={manualNumbers}
+                    onChange={(e) => setManualNumbers(e.target.value)}
+                    placeholder={"Enter phone numbers separated by commas or new lines\nExample: +1234567890, +1987654321"}
+                    className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg resize-none"
+                    style={{ outline: "none" }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = BRAND.primary;
+                      e.target.style.boxShadow = "0 0 0 2px rgba(255, 95, 31, 0.2)";
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = "#d1d5db";
+                      e.target.style.boxShadow = "none";
+                    }}
+                  />
+                  <div className="text-sm text-gray-600 mt-2">
+                    Separate multiple numbers with commas or line breaks
+                  </div>
+                </div>
+              )}
+
+              {recipientType === "upload" && (
+                <div className="text-center py-8">
+                  <button
+                    className="inline-flex flex-col items-center gap-3 px-8 py-6 border-2 border-dashed border-gray-300 rounded-lg text-gray-700 transition-colors hover:bg-gray-50"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = BRAND.primary;
+                      e.currentTarget.style.backgroundColor = BRAND.primaryLight;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "#d1d5db";
+                      e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
+                    <Upload className="w-8 h-8" />
+                    <div>
+                      <div className="font-medium mb-1">Click to upload CSV or Excel file</div>
+                      <div className="text-sm text-gray-500">File should contain phone numbers</div>
+                    </div>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -115,14 +195,20 @@ export function SendSMS() {
             <label className="block text-sm font-medium text-gray-900 mb-3">Schedule</label>
             <div className="space-y-4">
               <div className="flex gap-4">
-                {[true, false].map((isNow) => (
+                {([true, false] as const).map((isNow) => (
                   <button
                     key={String(isNow)}
                     onClick={() => setSendNow(isNow)}
                     className={`flex-1 px-4 py-3 rounded-lg border-2 font-medium transition-colors ${
-                      sendNow === isNow ? "text-gray-900" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      sendNow === isNow
+                        ? "text-gray-900"
+                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     }`}
-                    style={sendNow === isNow ? { borderColor: BRAND.primary, backgroundColor: BRAND.primaryLight } : {}}
+                    style={
+                      sendNow === isNow
+                        ? { borderColor: BRAND.primary, backgroundColor: BRAND.primaryLight }
+                        : {}
+                    }
                   >
                     {isNow ? "Send Now" : "Schedule Later"}
                   </button>

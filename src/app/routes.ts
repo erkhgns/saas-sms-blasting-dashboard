@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router";
 import { DashboardLayout } from "@/components/layouts/DashboardLayout";
 import { Dashboard } from "@/pages/Dashboard";
+import { Login } from "@/pages/Login";
 import { SendSMS } from "@/pages/SendSMS";
 import { Campaigns } from "@/pages/Campaigns";
 import { Contacts } from "@/pages/Contacts";
@@ -9,6 +10,7 @@ import { Reports } from "@/pages/Reports";
 import { Settings } from "@/pages/Settings";
 
 export const router = createBrowserRouter([
+  { path: "/login", Component: Login },
   {
     path: "/",
     Component: DashboardLayout,
