@@ -1094,16 +1094,19 @@ function seedForm(c: Campaign): CampaignFormState {
 
 // ── Build API payload from form state ────────────────────────────────────────
 
-function buildPayload(form: CampaignFormState): CreateCampaignPayload {
+function buildPayload(
+  form: CampaignFormState,
+  senderId: string
+): CreateCampaignPayload {
   const scheduledAt =
     !form.sendNow && form.scheduledDate && form.scheduledTime
       ? new Date(`${form.scheduledDate}T${form.scheduledTime}`).toISOString()
       : null;
 
   return {
-    senderId:       authStore.getUser()?.id ?? "",
+    senderId,
     name:           form.name.trim(),
-    senderName:     form.senderName,
+    senderName:     form.senderName || "SMSBlast",
     message:        form.message.trim(),
     priority:       form.priority,
     recipientGroup: form.segmentId ? undefined : form.group,
@@ -1124,6 +1127,9 @@ export function CampaignForm({ mode }: CampaignFormProps) {
 
   const readonly = mode === "view";
   const isCreate = mode === "create";
+
+  // Read once — guaranteed non-empty because ProtectedRoute ensures login
+  const senderId = authStore.getUser()?.id ?? "";
 
   const [step, setStep]           = useState(1);
   const [form, setForm]           = useState<CampaignFormState>(emptyCampaignForm);
@@ -1184,6 +1190,7 @@ export function CampaignForm({ mode }: CampaignFormProps) {
       try {
         const excluded = cleanPhoneNumbers(form.excludeNumbers);
         const result = await campaignsService.reach({
+          senderId,
           recipientGroup: form.segmentId ? undefined : form.group,
           segmentId:      form.segmentId ?? undefined,
           includeTags:    form.includeTags.length   ? form.includeTags   : undefined,
@@ -1241,7 +1248,7 @@ export function CampaignForm({ mode }: CampaignFormProps) {
     setSaveError(null);
     setSaving(true);
     try {
-      const payload = buildPayload(form);
+      const payload = buildPayload(form, senderId);
       if (isCreate || !form.id) {
         const campaign = await campaignsService.create(payload);
         setForm((prev) => ({ ...prev, id: campaign.id }));
@@ -1263,7 +1270,7 @@ export function CampaignForm({ mode }: CampaignFormProps) {
     setSaveError(null);
     setSaving(true);
     try {
-      const payload = buildPayload(form);
+      const payload = buildPayload(form, senderId);
 
       let campaignId = form.id;
       if (isCreate || !campaignId) {

@@ -18,6 +18,8 @@ interface GetCampaignsParams {
 }
 
 interface ReachParams {
+  /** Pass the user ID explicitly — do not rely on authStore inside the service. */
+  senderId?: string;
   recipientGroup?: string;
   segmentId?: string | null;
   includeTags?: string[];
@@ -47,7 +49,7 @@ export const campaignsService = {
    * Call on every audience field change to update the Estimated reach counter.
    */
   reach: (params: ReachParams = {}): Promise<ReachResponse> => {
-    const senderId = authStore.getUser()?.id ?? "";
+    const senderId = params.senderId ?? authStore.getUser()?.id ?? "";
     const p: Record<string, string> = { senderId };
     if (params.recipientGroup)       p.recipientGroup = params.recipientGroup;
     if (params.segmentId)            p.segmentId      = params.segmentId;
