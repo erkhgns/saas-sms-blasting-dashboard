@@ -26,12 +26,35 @@ export const TAG_COLORS: Record<string, string> = {
   Trial: "bg-yellow-50 text-yellow-700 border-yellow-200",
 };
 
+/**
+ * Keyed by display label ("Draft", "In Progress", …) — not the API enum value.
+ * Always convert API status → display label via CAMPAIGN_STATUS_LABELS before indexing here.
+ */
 export const CAMPAIGN_STATUS_COLORS: Record<string, string> = {
-  Sent: "bg-green-50 text-green-700 border-green-200",
-  Scheduled: "bg-blue-50 text-blue-700 border-blue-200",
-  Draft: "bg-gray-50 text-gray-700 border-gray-200",
-  "In Progress": "bg-blue-50 text-blue-700 border-blue-200",
-  Failed: "bg-red-50 text-red-700 border-red-200",
+  Draft:        "bg-gray-50   text-gray-700  border-gray-200",
+  Scheduled:    "bg-blue-50   text-blue-700  border-blue-200",
+  "In Progress":"bg-blue-50   text-blue-700  border-blue-200",
+  Sent:         "bg-green-50  text-green-700 border-green-200",
+  Failed:       "bg-red-50    text-red-700   border-red-200",
+};
+
+export const PRIORITY_COLORS: Record<string, string> = {
+  Normal: "bg-gray-50   text-gray-700   border-gray-200",
+  High:   "bg-orange-50 text-orange-700 border-orange-200",
+  Urgent: "bg-red-50    text-red-700    border-red-200",
+};
+
+export const SMS_STATUS_COLORS: Record<string, string> = {
+  PENDING: "bg-gray-50 text-gray-700 border-gray-200",
+  SENT:    "bg-green-50 text-green-700 border-green-200",
+  FAILED:  "bg-red-50 text-red-700 border-red-200",
+};
+
+export const SMS_STATUS_LABELS: Record<string, string> = {
+  PENDING: "Pending",
+  SENT:    "Sent",
+  FAILED:  "Failed",
 };
 
 export const PAGE_SIZE = 10;
+

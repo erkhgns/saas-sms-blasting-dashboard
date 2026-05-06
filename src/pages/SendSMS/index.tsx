@@ -1,18 +1,26 @@
 import { useState } from "react";
 import { Upload, Users, Calendar, Send as SendIcon, X } from "lucide-react";
 import { PageHeader, PrimaryButton } from "@/components/common";
-import { BRAND, CONTACT_GROUPS, CONTACT_TAGS, getSmsSegmentCount } from "@/utils";
+import { BRAND, CONTACT_GROUPS, CONTACT_TAGS, getSmsSegmentCount, authStore, cleanPhoneNumbers } from "@/utils";
+import { PRIORITY_FROM_LABEL } from "@/types";
+import { messagesService } from "@/services";
 
 type RecipientType = "contacts" | "manual" | "upload";
+type Priority = "Normal" | "High" | "Urgent";
 
 export function SendSMS() {
   const [message, setMessage] = useState("");
-  const [recipientType, setRecipientType] = useState<RecipientType>("contacts");
+  const [recipientType, setRecipientType] = useState<RecipientType>("manual");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sendNow, setSendNow] = useState(true);
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
   const [manualNumbers, setManualNumbers] = useState("");
+  const [excludeNumbers, setExcludeNumbers] = useState("");
+  const [priority, setPriority] = useState<Priority>("Normal");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendSuccess, setSendSuccess] = useState(false);
 
   const characterCount = message.length;
   const segmentCount = getSmsSegmentCount(message);
@@ -23,16 +31,58 @@ export function SendSMS() {
     );
   };
 
+  const handleSend = async () => {
+    setSendError(null);
+    setSendSuccess(false);
+
+    if (!message.trim()) {
+      setSendError("Please enter a message.");
+      return;
+    }
+
+    if (recipientType === "manual") {
+      const cleaned = cleanPhoneNumbers(manualNumbers);
+      const excluded = new Set(cleanPhoneNumbers(excludeNumbers));
+      const numbers = cleaned.filter((n) => !excluded.has(n));
+
+      if (numbers.length === 0) {
+        setSendError(
+          cleaned.length === 0
+            ? "Please enter at least one phone number."
+            : "All numbers were excluded."
+        );
+        return;
+      }
+
+      setSending(true);
+      try {
+        const result = await messagesService.createBulkSms({
+          content: message,
+          receivers: numbers,
+          senderId: authStore.getUser()?.id ?? "",
+          priority: PRIORITY_FROM_LABEL[priority as keyof typeof PRIORITY_FROM_LABEL],
+        });
+        setSendSuccess(true);
+        setMessage("");
+        setManualNumbers("");
+        setExcludeNumbers("");
+        if (result.skipped.length > 0) {
+          setSendError(`${result.message}. Skipped: ${result.skipped.join(", ")}`);
+        }
+      } catch (err) {
+        setSendError(err instanceof Error ? err.message : "Failed to send SMS.");
+      } finally {
+        setSending(false);
+      }
+    }
+  };
+
   const recipientTabStyle = (active: boolean) =>
-    active
-      ? { borderColor: BRAND.primary, backgroundColor: BRAND.primaryLight }
-      : {};
+    active ? { borderColor: BRAND.primary, backgroundColor: BRAND.primaryLight } : {};
 
   const recipientTabClass = (active: boolean) =>
     `flex-1 px-4 py-2.5 rounded-lg border-2 font-medium transition-colors ${
-      active
-        ? "text-gray-900"
-        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+      active ? "text-gray-900" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
     }`;
 
   return (
@@ -76,7 +126,6 @@ export function SendSMS() {
           <div className="mb-8">
             <label className="block text-sm font-medium text-gray-900 mb-3">Recipients</label>
 
-            {/* Recipient Type Tabs */}
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setRecipientType("contacts")}
@@ -119,7 +168,6 @@ export function SendSMS() {
                       ))}
                     </select>
                   </div>
-
                   <div>
                     <div className="text-sm text-gray-700 mb-2">Filter by tags:</div>
                     <div className="flex flex-wrap gap-2">
@@ -144,25 +192,97 @@ export function SendSMS() {
               )}
 
               {recipientType === "manual" && (
-                <div>
-                  <textarea
-                    value={manualNumbers}
-                    onChange={(e) => setManualNumbers(e.target.value)}
-                    placeholder={"Enter phone numbers separated by commas or new lines\nExample: +1234567890, +1987654321"}
-                    className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg resize-none"
-                    style={{ outline: "none" }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = BRAND.primary;
-                      e.target.style.boxShadow = "0 0 0 2px rgba(255, 95, 31, 0.2)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#d1d5db";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  />
-                  <div className="text-sm text-gray-600 mt-2">
-                    Separate multiple numbers with commas or line breaks
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Recipients */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm font-medium text-gray-700">Phone Numbers</span>
+                      {manualNumbers.trim() && (
+                        <span className="text-xs text-gray-500">
+                          {cleanPhoneNumbers(manualNumbers).length} number
+                          {cleanPhoneNumbers(manualNumbers).length !== 1 ? "s" : ""} cleaned
+                        </span>
+                      )}
+                    </div>
+                    <textarea
+                      value={manualNumbers}
+                      onChange={(e) => setManualNumbers(e.target.value)}
+                      placeholder={"Paste numbers — messy is fine!\n09277910973\n639277910973\n9277910973,\n09277910987"}
+                      className="w-full h-36 px-4 py-3 border border-gray-300 rounded-lg resize-none font-mono text-sm"
+                      style={{ outline: "none" }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = BRAND.primary;
+                        e.target.style.boxShadow = "0 0 0 2px rgba(255, 95, 31, 0.2)";
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = "#d1d5db";
+                        e.target.style.boxShadow = "none";
+                      }}
+                    />
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      Commas, line breaks, duplicates &amp; formatting fixed automatically
+                    </p>
                   </div>
+
+                  {/* Exclude */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm font-medium text-gray-700">Exclude Numbers</span>
+                      {excludeNumbers.trim() && (
+                        <span className="text-xs text-gray-500">
+                          {cleanPhoneNumbers(excludeNumbers).length} excluded
+                        </span>
+                      )}
+                    </div>
+                    <textarea
+                      value={excludeNumbers}
+                      onChange={(e) => setExcludeNumbers(e.target.value)}
+                      placeholder={"Numbers to skip from the list\n09277910973\n+639277910973"}
+                      className="w-full h-36 px-4 py-3 border border-gray-300 rounded-lg resize-none font-mono text-sm"
+                      style={{ outline: "none" }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = "#ef4444";
+                        e.target.style.boxShadow = "0 0 0 2px rgba(239, 68, 68, 0.15)";
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = "#d1d5db";
+                        e.target.style.boxShadow = "none";
+                      }}
+                    />
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      These numbers will be removed before sending
+                    </p>
+                  </div>
+
+                  {/* Preview count row */}
+                  {manualNumbers.trim() && (
+                    <div className="col-span-2">
+                      {(() => {
+                        const cleaned = cleanPhoneNumbers(manualNumbers);
+                        const excluded = new Set(cleanPhoneNumbers(excludeNumbers));
+                        const final = cleaned.filter((n) => !excluded.has(n));
+                        const dupesRemoved = manualNumbers.split(/[\n,]+/).filter((l) => l.trim()).length - cleaned.length;
+                        return (
+                          <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-sm">
+                            <span className="text-gray-600">
+                              Will send to{" "}
+                              <span className="font-semibold text-gray-900">{final.length}</span> number{final.length !== 1 ? "s" : ""}
+                            </span>
+                            {excluded.size > 0 && (
+                              <span className="text-red-600">
+                                · {excluded.size} excluded
+                              </span>
+                            )}
+                            {dupesRemoved > 0 && (
+                              <span className="text-orange-600">
+                                · {dupesRemoved} duplicate{dupesRemoved !== 1 ? "s" : ""} removed
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -187,6 +307,23 @@ export function SendSMS() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Priority */}
+          <div className="mb-8">
+            <label className="block text-sm font-medium text-gray-900 mb-3">Priority</label>
+            <div className="flex gap-2">
+              {(["Normal", "High", "Urgent"] as Priority[]).map((level) => (
+                <button
+                  key={level}
+                  onClick={() => setPriority(level)}
+                  className={recipientTabClass(priority === level)}
+                  style={recipientTabStyle(priority === level)}
+                >
+                  {level}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -245,14 +382,30 @@ export function SendSMS() {
             </div>
           </div>
 
+          {/* Feedback */}
+          {sendError && (
+            <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+              {sendError}
+            </div>
+          )}
+          {sendSuccess && (
+            <div className="mb-4 px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+              SMS queued successfully!
+            </div>
+          )}
+
           {/* Send Button */}
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
               Estimated cost: <span className="font-semibold text-gray-900">15,230 credits</span>
             </div>
-            <PrimaryButton className="px-8 py-3.5">
+            <PrimaryButton
+              className="px-8 py-3.5"
+              onClick={handleSend}
+              disabled={sending || recipientType !== "manual"}
+            >
               <SendIcon className="w-5 h-5" />
-              {sendNow ? "Send SMS" : "Schedule SMS"}
+              {sending ? "Sending..." : sendNow ? "Send SMS" : "Schedule SMS"}
             </PrimaryButton>
           </div>
         </div>
