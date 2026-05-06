@@ -6,3 +6,4 @@ export * from "./message.types";
 export * from "./report.types";
 export * from "./auth.types";
 export * from "./token.types";
+export * from "./device-log.types";

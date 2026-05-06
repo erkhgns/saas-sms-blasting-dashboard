@@ -10,3 +10,4 @@ export * from "./useReports";
 export * from "./useSegments";
 export * from "./useSmsLogs";
 export * from "./useTokens";
+export * from "./useDeviceLogs";
