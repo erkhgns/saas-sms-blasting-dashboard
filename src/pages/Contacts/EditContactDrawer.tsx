@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo } from "react";
 import { X, User, Braces, Clock, Search, Check, Tag, ArrowUpRight, Trash2, Sparkles, Ban } from "lucide-react";
 import { BRAND, TAG_COLORS } from "@/utils";
 import { contactsService } from "@/services";
+import { authStore } from "@/utils/auth.store";
 import { useTokens } from "@/hooks";
 import { CustomFieldInput } from "./CustomFieldInput";
 import type { Contact } from "@/types";
 
 interface EditContactDrawerProps {
-  contact: Contact;
+  /** Pass an existing Contact to edit, or null to create a new one. */
+  contact: Contact | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -35,6 +37,7 @@ function getInitials(name: string) {
 }
 
 export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDrawerProps) {
+  const isCreate = contact === null;
   const { tokens } = useTokens();
 
   // Animate in
@@ -55,15 +58,15 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
     return () => window.removeEventListener("keydown", h);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Form state
+  // Form state — blank for create, seeded for edit
   const [tab, setTab]               = useState<DrawerTab>("details");
-  const [name, setName]             = useState(contact.name);
-  const [phone, setPhone]           = useState(contact.phone);
-  const [email, setEmail]           = useState(contact.email ?? "");
-  const [tags, setTags]             = useState<string[]>(contact.tags);
+  const [name, setName]             = useState(contact?.name ?? "");
+  const [phone, setPhone]           = useState(contact?.phone ?? "");
+  const [email, setEmail]           = useState(contact?.email ?? "");
+  const [tags, setTags]             = useState<string[]>(contact?.tags ?? []);
   const [tagInput, setTagInput]     = useState("");
   const [customFields, setCustomFields] = useState<Record<string, string>>(
-    contact.customFields ?? {}
+    contact?.customFields ?? {}
   );
   const [tokenSearch, setTokenSearch] = useState("");
   const [saving, setSaving]         = useState(false);
@@ -100,7 +103,7 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
     );
   }, [tokens, tokenSearch]);
 
-  // Save
+  // Save — create or update depending on mode
   const handleSave = async () => {
     setSaveError(null);
     if (!name.trim())  { setSaveError("Name is required."); return; }
@@ -108,24 +111,35 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
 
     setSaving(true);
     try {
-      await contactsService.update(contact.id, {
-        name:  name.trim(),
-        phone: phone.trim(),
-        email: email.trim() || null,
-        tags,
-        customFields,
-      });
+      if (isCreate) {
+        await contactsService.create({
+          senderId: authStore.getUser()?.id ?? "",
+          name:  name.trim(),
+          phone: phone.trim(),
+          email: email.trim() || undefined,
+          tags,
+        });
+      } else {
+        await contactsService.update(contact.id, {
+          name:  name.trim(),
+          phone: phone.trim(),
+          email: email.trim() || null,
+          tags,
+          customFields,
+        });
+      }
       onSuccess();
       handleClose();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to update contact.");
+      setSaveError(err instanceof Error ? err.message : isCreate ? "Failed to create contact." : "Failed to update contact.");
     } finally {
       setSaving(false);
     }
   };
 
-  // Delete
+  // Delete (edit mode only)
   const handleDelete = async () => {
+    if (!contact) return;
     if (!confirm(`Delete ${contact.name}? This cannot be undone.`)) return;
     setDeleting(true);
     try {
@@ -138,13 +152,16 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
     }
   };
 
-  const initials = getInitials(contact.name);
+  const initials = contact ? getInitials(contact.name) : "";
 
-  const tabs: { key: DrawerTab; label: string; icon: React.ReactNode; count?: number }[] = [
-    { key: "details",  label: "Details",       icon: <User className="w-4 h-4" /> },
-    { key: "custom",   label: "Custom fields", icon: <Braces className="w-4 h-4" />, count: filledCount },
-    { key: "activity", label: "Activity",      icon: <Clock className="w-4 h-4" /> },
-  ];
+  // Create mode only shows Details — no custom fields or activity yet (contact doesn't exist)
+  const tabs: { key: DrawerTab; label: string; icon: React.ReactNode; count?: number }[] = isCreate
+    ? [{ key: "details", label: "Details", icon: <User className="w-4 h-4" /> }]
+    : [
+        { key: "details",  label: "Details",       icon: <User className="w-4 h-4" /> },
+        { key: "custom",   label: "Custom fields", icon: <Braces className="w-4 h-4" />, count: filledCount },
+        { key: "activity", label: "Activity",      icon: <Clock className="w-4 h-4" /> },
+      ];
 
   return (
     <>
@@ -171,19 +188,27 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
               className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-base shrink-0"
               style={{ backgroundColor: BRAND.primary }}
             >
-              {initials}
+              {isCreate ? <User className="w-5 h-5" /> : initials}
             </div>
 
-            {/* Name + phone */}
+            {/* Name + subtitle */}
             <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-semibold text-gray-900 truncate">{contact.name}</h2>
+              <h2 className="text-xl font-semibold text-gray-900 truncate">
+                {isCreate ? "New Contact" : contact.name}
+              </h2>
               <div className="flex items-center gap-3 mt-0.5 text-sm text-gray-500">
-                <span className="font-mono">{contact.phone}</span>
-                {contact.optedOut && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-700 border border-red-200">
-                    <Ban className="w-3 h-3" />
-                    Opted out
-                  </span>
+                {isCreate ? (
+                  <span>Fill in the details below</span>
+                ) : (
+                  <>
+                    <span className="font-mono">{contact.phone}</span>
+                    {contact.optedOut && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-700 border border-red-200">
+                        <Ban className="w-3 h-3" />
+                        Opted out
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -259,11 +284,15 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
                   type="text"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  placeholder="09171234567"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-mono"
                   style={{ outline: "none" }}
                   onFocus={focusStyle}
                   onBlur={blurStyle}
                 />
+                {isCreate && (
+                  <p className="text-xs text-gray-400 mt-1">Format: 09XXXXXXXXX or +639XXXXXXXXX</p>
+                )}
               </div>
 
               {/* Email */}
@@ -451,16 +480,20 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
 
         {/* ── Footer ── */}
         <div className="px-6 py-3.5 border-t border-gray-200 flex items-center justify-between">
-          {/* Delete */}
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="text-sm text-red-600 hover:underline inline-flex items-center gap-1.5 disabled:opacity-50"
-          >
-            <Trash2 className="w-4 h-4" />
-            {deleting ? "Deleting..." : "Delete contact"}
-          </button>
+          {/* Delete — edit mode only */}
+          {!isCreate ? (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="text-sm text-red-600 hover:underline inline-flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              {deleting ? "Deleting..." : "Delete contact"}
+            </button>
+          ) : (
+            <span />
+          )}
 
           <div className="flex items-center gap-2">
             {saveError && (
@@ -482,7 +515,7 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
               onMouseEnter={(e) => { if (!saving) e.currentTarget.style.backgroundColor = "#E54E0F"; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND.primary; }}
             >
-              {saving ? "Saving..." : "Save changes"}
+              {saving ? "Saving..." : isCreate ? "Add Contact" : "Save changes"}
             </button>
           </div>
         </div>

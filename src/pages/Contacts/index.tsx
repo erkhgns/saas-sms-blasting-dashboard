@@ -5,7 +5,6 @@ import { BRAND, TAG_COLORS } from "@/utils";
 import { useContacts, useContactGroups, useTokens } from "@/hooks";
 import { contactsService } from "@/services";
 import { authStore } from "@/utils/auth.store";
-import { AddContactModal } from "./AddContactModal";
 import { EditContactDrawer } from "./EditContactDrawer";
 import { ColumnVisibilityMenu } from "./ColumnVisibilityMenu";
 import type { Contact, ImportContactsResponse } from "@/types";
@@ -18,8 +17,9 @@ export function Contacts() {
   const [search, setSearch]           = useState("");
   const [tagFilter, setTagFilter]     = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [showAddModal, setShowAddModal]         = useState(false);
-  const [editingContact, setEditingContact]     = useState<Contact | null>(null);
+  // null = drawer closed; "new" = create mode; Contact = edit mode
+  const [drawerContact, setDrawerContact] = useState<Contact | null | "new">(null);
+  const editingContact = drawerContact === "new" ? null : drawerContact;
   const [deletingId, setDeletingId]             = useState<string | null>(null);
   const [bulkDeleting, setBulkDeleting]         = useState(false);
   const [togglingOptOutId, setTogglingOptOutId] = useState<string | null>(null);
@@ -165,7 +165,7 @@ export function Contacts() {
               <Upload className="w-5 h-5" />
               <span className="font-medium">{importing ? "Importing..." : "Import CSV"}</span>
             </button>
-            <PrimaryButton onClick={() => setShowAddModal(true)}>
+            <PrimaryButton onClick={() => setDrawerContact("new")}>
               <Plus className="w-5 h-5" />
               Add Contact
             </PrimaryButton>
@@ -356,7 +356,7 @@ export function Contacts() {
                   return (
                     <tr
                       key={contact.id}
-                      onClick={() => setEditingContact(contact)}
+                      onClick={() => setDrawerContact(contact)}
                       className={`hover:bg-orange-50/30 cursor-pointer transition-colors ${
                         contact.optedOut ? "opacity-60" : ""
                       } ${isSelected ? "bg-orange-50/50" : ""}`}
@@ -449,7 +449,7 @@ export function Contacts() {
                       >
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => setEditingContact(contact)}
+                            onClick={() => setDrawerContact(contact)}
                             title="Edit contact"
                             className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                           >
@@ -523,18 +523,12 @@ export function Contacts() {
         </div>
       </div>
 
-      {/* Modals / Drawer */}
-      {showAddModal && (
-        <AddContactModal
-          onClose={() => setShowAddModal(false)}
-          onSuccess={() => { refetch(); setPage(1); }}
-        />
-      )}
-      {editingContact && (
+      {/* Drawer — handles both create (contact=null) and edit (contact=Contact) */}
+      {drawerContact !== null && (
         <EditContactDrawer
           contact={editingContact}
-          onClose={() => setEditingContact(null)}
-          onSuccess={refetch}
+          onClose={() => setDrawerContact(null)}
+          onSuccess={() => { refetch(); if (editingContact === null) setPage(1); }}
         />
       )}
     </div>
