@@ -1,9 +1,11 @@
-import { Outlet, NavLink } from "react-router";
+import { useState } from "react";
+import { Outlet, NavLink, useNavigate } from "react-router";
 import {
   LayoutDashboard, Send, BarChart3, Users, MessageSquare,
-  FileText, Settings, Bell, ChevronDown,
+  FileText, Settings, ChevronDown, ScrollText, LogOut,
 } from "lucide-react";
-import { BRAND } from "@/utils";
+import { BRAND, authStore } from "@/utils";
+import { authService } from "@/services/auth.service";
 
 const navItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -12,12 +14,28 @@ const navItems = [
   { path: "/contacts", label: "Contacts", icon: Users },
   { path: "/inbox", label: "Inbox", icon: MessageSquare },
   { path: "/reports", label: "Reports", icon: FileText },
+  { path: "/logs", label: "SMS Logs", icon: ScrollText },
   { path: "/settings", label: "Settings", icon: Settings },
 ];
 
-const CREDITS = 12_450;
+function getInitials(name: string) {
+  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+}
 
 export function DashboardLayout() {
+  const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const user = authStore.getUser();
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await authService.logout();
+    } finally {
+      navigate("/login", { replace: true });
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -53,6 +71,29 @@ export function DashboardLayout() {
             </NavLink>
           ))}
         </nav>
+
+        {/* Sidebar Footer — user info + logout */}
+        <div className="px-3 py-4 border-t border-gray-200">
+          <div className="flex items-center gap-3 px-3 py-2 mb-1">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: BRAND.primary }}>
+              <span className="text-xs font-semibold text-white">
+                {user ? getInitials(user.name) : "?"}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-gray-900 truncate">{user?.name ?? "—"}</div>
+              <div className="text-xs text-gray-500 truncate">{user?.email ?? "—"}</div>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">{loggingOut ? "Logging out..." : "Logout"}</span>
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -61,33 +102,25 @@ export function DashboardLayout() {
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8">
           <div className="flex-1" />
 
-          <div className="flex items-center gap-6">
-            {/* Credits */}
-            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full" />
-              <span className="text-sm font-medium text-green-900">
-                {CREDITS.toLocaleString()} Credits
+          {/* User profile — click to go to Settings */}
+          <button
+            onClick={() => navigate("/settings")}
+            className="flex items-center gap-3 pl-3 pr-2 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <div className="text-right">
+              <div className="text-sm font-medium text-gray-900">{user?.name ?? "—"}</div>
+              <div className="text-xs text-gray-500">{user?.email ?? "—"}</div>
+            </div>
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+              style={{ backgroundColor: BRAND.primary }}
+            >
+              <span className="text-sm font-medium text-white">
+                {user ? getInitials(user.name) : "?"}
               </span>
             </div>
-
-            {/* Notifications */}
-            <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <Bell className="w-5 h-5 text-gray-600" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
-
-            {/* User Profile */}
-            <button className="flex items-center gap-3 pl-3 pr-2 py-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <div className="text-right">
-                <div className="text-sm font-medium text-gray-900">John Smith</div>
-                <div className="text-xs text-gray-500">Admin</div>
-              </div>
-              <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: BRAND.primary }}>
-                <span className="text-sm font-medium text-white">JS</span>
-              </div>
-              <ChevronDown className="w-4 h-4 text-gray-500" />
-            </button>
-          </div>
+            <ChevronDown className="w-4 h-4 text-gray-400" />
+          </button>
         </header>
 
         {/* Page Content */}
