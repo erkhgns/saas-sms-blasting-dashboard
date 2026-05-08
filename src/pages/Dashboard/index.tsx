@@ -87,7 +87,7 @@ export function Dashboard() {
         {statCards.map((kpi) => (
           <div key={kpi.label} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="mb-4">
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FCF4B5" }}>
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFF0E8" }}>
                 <kpi.icon className="w-6 h-6" style={{ color: "#FF692E" }} />
               </div>
             </div>

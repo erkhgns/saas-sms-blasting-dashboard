@@ -90,7 +90,7 @@ export function Contacts() {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FCF4B5' }}>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FFF0E8' }}>
                       <span className="text-sm font-medium" style={{ color: '#FF692E' }}>{contact.name.split(' ').map(n => n[0]).join('')}</span>
                     </div>
                     <div className="font-medium text-gray-900">{contact.name}</div>

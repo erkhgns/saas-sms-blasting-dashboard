@@ -1,7 +1,7 @@
 export const BRAND = {
   primary: "#FF692E",
   primaryHover: "#E55829",
-  primaryLight: "#FCF4B5",
+  primaryLight: "#FFF0E8",
 } as const;
 
 export const SMS = {

@@ -94,9 +94,9 @@ export function Inbox() {
               className={`w-full p-4 flex items-start gap-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
                 selectedConversation === conversation.id ? "hover:bg-gray-50" : ""
               }`}
-              style={selectedConversation === conversation.id ? { backgroundColor: '#FCF4B5' } : {}}
+              style={selectedConversation === conversation.id ? { backgroundColor: '#FFF0E8' } : {}}
             >
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FCF4B5' }}>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FFF0E8' }}>
                 <span className="text-sm font-medium" style={{ color: '#FF692E' }}>{conversation.name.split(' ').map(n => n[0]).join('')}</span>
               </div>
               <div className="flex-1 min-w-0 text-left">
@@ -122,7 +122,7 @@ export function Inbox() {
         {/* Chat Header */}
         <div className="h-16 bg-white border-b border-gray-200 flex items-center px-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FCF4B5' }}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FFF0E8' }}>
               <span className="text-sm font-medium" style={{ color: '#FF692E' }}>
                 {conversations.find(c => c.id === selectedConversation)?.name.split(' ').map(n => n[0]).join('')}
               </span>

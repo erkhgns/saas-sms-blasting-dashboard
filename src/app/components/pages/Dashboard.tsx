@@ -45,7 +45,7 @@ export function Dashboard() {
         {kpiData.map((kpi) => (
           <div key={kpi.label} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FCF4B5' }}>
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFF0E8' }}>
                 <kpi.icon className="w-6 h-6" style={{ color: '#FF692E' }} />
               </div>
               <div className={`flex items-center gap-1 text-sm font-medium ${
@@ -111,7 +111,7 @@ export function Dashboard() {
           <div className="space-y-4">
             {recentReplies.map((reply, index) => (
               <div key={index} className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FCF4B5' }}>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FFF0E8' }}>
                   <span className="text-sm font-medium" style={{ color: '#FF692E' }}>{reply.name.split(' ').map(n => n[0]).join('')}</span>
                 </div>
                 <div className="flex-1 min-w-0">

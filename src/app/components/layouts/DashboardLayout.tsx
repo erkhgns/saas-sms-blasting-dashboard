@@ -37,7 +37,7 @@ export function DashboardLayout() {
                     : "text-gray-700 hover:bg-gray-50"
                 }`
               }
-              style={({ isActive }) => isActive ? { backgroundColor: '#FCF4B5' } : {}}
+              style={({ isActive }) => isActive ? { backgroundColor: '#FFF0E8' } : {}}
             >
               {({ isActive }) => (
                 <>

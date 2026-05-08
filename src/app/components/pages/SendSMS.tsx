@@ -107,7 +107,7 @@ export function SendSMS() {
                   className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-gray-700 transition-colors"
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = '#FF692E';
-                    e.currentTarget.style.backgroundColor = '#FCF4B5';
+                    e.currentTarget.style.backgroundColor = '#FFF0E8';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = '#d1d5db';
@@ -134,7 +134,7 @@ export function SendSMS() {
                       ? "text-gray-900"
                       : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                   }`}
-                  style={sendNow ? { borderColor: '#FF692E', backgroundColor: '#FCF4B5' } : {}}
+                  style={sendNow ? { borderColor: '#FF692E', backgroundColor: '#FFF0E8' } : {}}
                 >
                   Send Now
                 </button>
@@ -145,7 +145,7 @@ export function SendSMS() {
                       ? "text-gray-900"
                       : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                   }`}
-                  style={!sendNow ? { borderColor: '#FF692E', backgroundColor: '#FCF4B5' } : {}}
+                  style={!sendNow ? { borderColor: '#FF692E', backgroundColor: '#FFF0E8' } : {}}
                 >
                   Schedule Later
                 </button>
