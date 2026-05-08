@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Search, Upload, Plus, Trash2, Ban, Pencil, CheckCircle2, AlertCircle, Braces, ArrowUpRight } from "lucide-react";
+import { Search, Upload, Plus, Trash2, Ban, Pencil, CheckCircle2, AlertCircle, Braces, ArrowUpRight, Download } from "lucide-react";
 import { PageHeader, PrimaryButton, AvatarInitials } from "@/components/common";
 import { BRAND, TAG_COLORS } from "@/utils";
 import { useContacts, useContactGroups, useTokens } from "@/hooks";
@@ -157,6 +157,27 @@ export function Contacts() {
               className="hidden"
               onChange={handleImportCsv}
             />
+            <button
+              onClick={() => {
+                const csv = [
+                  "name,phone,email,tags",
+                  'Maria Santos,09171234567,maria@example.com,"VIP,Repeat Customer"',
+                  "Juan Dela Cruz,+639181234567,,Reseller",
+                  "Pedro Reyes,09191234567,,",
+                ].join("\n");
+                const blob = new Blob([csv], { type: "text/csv" });
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement("a");
+                a.href     = url;
+                a.download = "contacts-template.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Download className="w-5 h-5" />
+              <span className="font-medium">CSV Template</span>
+            </button>
             <button
               onClick={() => csvInputRef.current?.click()}
               disabled={importing}
