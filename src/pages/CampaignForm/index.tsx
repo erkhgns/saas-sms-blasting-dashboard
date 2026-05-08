@@ -1064,6 +1064,18 @@ function WizardStepper({
 
 function seedForm(c: Campaign): CampaignFormState {
   const scheduledAt = c.scheduledAt ?? null;
+
+  // Convert UTC ISO string → local date/time parts for the date+time inputs.
+  // Slicing the raw string would give UTC values, not the user's local time.
+  let scheduledDate = "";
+  let scheduledTime = "";
+  if (scheduledAt) {
+    const d   = new Date(scheduledAt);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    scheduledDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    scheduledTime = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
   return {
     id:             c.id,
     name:           c.name,
@@ -1078,8 +1090,8 @@ function seedForm(c: Campaign): CampaignFormState {
     excludeNumbers: (c.excludeNumbers ?? []).join("\n"),
     segmentId:      c.segmentId ?? null,
     sendNow:        !scheduledAt,
-    scheduledDate:  scheduledAt ? scheduledAt.slice(0, 10) : "",
-    scheduledTime:  scheduledAt ? scheduledAt.slice(11, 16) : "",
+    scheduledDate,
+    scheduledTime,
     recipients:     c.recipients,
     sent:           c.sent,
     failed:         c.failed,
