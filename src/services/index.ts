@@ -7,3 +7,5 @@ export * from "./messages.service";
 export * from "./reports.service";
 export * from "./auth.service";
 export * from "./device-logs.service";
+export * from "./tags.service";
+export * from "./tokens.service";

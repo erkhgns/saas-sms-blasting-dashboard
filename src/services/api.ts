@@ -6,7 +6,7 @@ const API_KEY = import.meta.env.VITE_API_KEY ?? "";
 const API_TIMEOUT_MS = 15_000;
 
 // Routes that require x-api-key (ESP32 + frontend shared)
-const API_KEY_PREFIXES = ["/sms", "/users", "/contacts", "/analytics", "/inbox", "/device-logs"];
+const API_KEY_PREFIXES = ["/sms", "/users", "/contacts", "/analytics", "/inbox", "/device-logs", "/tags", "/tokens"];
 // Routes that never need auth headers
 const PUBLIC_PREFIXES = ["/auth", "/health"];
 
