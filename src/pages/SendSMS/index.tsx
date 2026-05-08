@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Upload, Users, Calendar, Send as SendIcon, X, RefreshCw, FileText, Search, UserCheck } from "lucide-react";
+import { Upload, Users, Calendar, Send as SendIcon, X, RefreshCw, FileText, Search, UserCheck, Download } from "lucide-react";
 import { PageHeader, PrimaryButton } from "@/components/common";
 import { BRAND, getSmsSegmentCount, authStore, cleanPhoneNumbers, TAG_COLORS } from "@/utils";
 import { PRIORITY_FROM_LABEL } from "@/types";
@@ -708,6 +708,37 @@ export function SendSMS() {
             {recipientType === "upload" && (
               <div className="space-y-4">
                 <input ref={fileInputRef} type="file" accept=".csv,.txt,.tsv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+
+                {/* Template download */}
+                <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    Not sure what format to use?{" "}
+                    <span className="text-gray-500">Download our sample file as a guide.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const csv = [
+                        "phone",
+                        "09171234567",
+                        "+639181234567",
+                        "639191234567",
+                        "09201234567",
+                      ].join("\n");
+                      const blob = new Blob([csv], { type: "text/csv" });
+                      const url  = URL.createObjectURL(blob);
+                      const a    = document.createElement("a");
+                      a.href     = url;
+                      a.download = "recipients-template.csv";
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-white transition-colors text-gray-700 shrink-0 ml-4"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download template
+                  </button>
+                </div>
 
                 {!uploadFileName ? (
                   <div
