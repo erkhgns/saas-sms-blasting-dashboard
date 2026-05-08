@@ -11,7 +11,7 @@ export const authService = {
     authStore.setAccessToken(res.accessToken);
     authStore.setRefreshToken(res.refreshToken);
     authStore.setUser(res.user);
-    if (res.apiKey?.prefix) authStore.setApiKeyPrefix(res.apiKey.prefix);
+    if (res.apiKey) authStore.setApiKey(res.apiKey);
     return res;
   },
 

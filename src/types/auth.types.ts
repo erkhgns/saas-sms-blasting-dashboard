@@ -21,11 +21,8 @@ export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
   user: AuthUser;
-  apiKey: {
-    hasKey: boolean;
-    /** First 10 chars of the personal API key, e.g. "sk_a1b2c3d4" */
-    prefix: string;
-  };
+  /** Full personal API key returned on every login — store securely. */
+  apiKey: string;
 }
 
 export interface RegenerateApiKeyResponse {

@@ -1,9 +1,9 @@
 import type { AuthUser } from "@/types";
 
 const KEYS = {
-  refreshToken:  "refresh_token",
-  user:          "auth_user",
-  apiKeyPrefix:  "api_key_prefix",
+  refreshToken: "refresh_token",
+  user:         "auth_user",
+  apiKey:       "api_key",
 } as const;
 
 // Access token lives only in memory — cleared on page refresh (by design)
@@ -34,11 +34,11 @@ export const authStore = {
     else localStorage.removeItem(KEYS.user);
   },
 
-  // API key prefix (persisted — shown in Settings)
-  getApiKeyPrefix: () => localStorage.getItem(KEYS.apiKeyPrefix),
-  setApiKeyPrefix: (prefix: string | null) => {
-    if (prefix) localStorage.setItem(KEYS.apiKeyPrefix, prefix);
-    else localStorage.removeItem(KEYS.apiKeyPrefix);
+  // Full API key (persisted — returned on every login)
+  getApiKey: () => localStorage.getItem(KEYS.apiKey),
+  setApiKey: (key: string | null) => {
+    if (key) localStorage.setItem(KEYS.apiKey, key);
+    else localStorage.removeItem(KEYS.apiKey);
   },
 
   isLoggedIn: () => !!localStorage.getItem(KEYS.refreshToken),
@@ -48,6 +48,6 @@ export const authStore = {
     _accessToken = null;
     localStorage.removeItem(KEYS.refreshToken);
     localStorage.removeItem(KEYS.user);
-    localStorage.removeItem(KEYS.apiKeyPrefix);
+    localStorage.removeItem(KEYS.apiKey);
   },
 };

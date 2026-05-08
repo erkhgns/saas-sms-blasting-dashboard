@@ -65,19 +65,20 @@ const accountToggles = [
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 export function Settings() {
-  const apiKeyPrefix = authStore.getApiKeyPrefix();
+  const storedKey = authStore.getApiKey();
 
-  // Masked display: show prefix + dots, e.g. "sk_a1b2c3d4••••••••••••••••••••••••••••••"
-  const maskedKey = apiKeyPrefix ? `${apiKeyPrefix}${"•".repeat(32)}` : "••••••••••••••••••••••••••••••••••••••••••";
+  // Show first 10 chars + mask the rest, e.g. "sk_e42443a6b4••••••••••••••••••••••••"
+  const maskedKey = storedKey
+    ? `${storedKey.slice(0, 10)}${"•".repeat(32)}`
+    : null;
 
   // Regenerate state
-  const [regenerating, setRegenerating]   = useState(false);
-  const [newKey, setNewKey]               = useState<string | null>(null);   // full key shown once
-  const [newPrefix, setNewPrefix]         = useState<string | null>(null);
-  const [regenError, setRegenError]       = useState<string | null>(null);
-  const [copied, setCopied]               = useState(false);       // for new-key panel
-  const [copiedPrefix, setCopiedPrefix]   = useState(false);       // for main key button
-  const [copyError, setCopyError]         = useState(false);       // feedback when copy fails
+  const [regenerating, setRegenerating] = useState(false);
+  const [newKey, setNewKey]             = useState<string | null>(null);
+  const [regenError, setRegenError]     = useState<string | null>(null);
+  const [copied, setCopied]             = useState(false);   // new-key panel copy
+  const [copiedMain, setCopiedMain]     = useState(false);   // main key copy
+  const [copyError, setCopyError]       = useState(false);
 
   const handleRegenerate = async () => {
     setRegenError(null);
@@ -85,9 +86,8 @@ export function Settings() {
     setRegenerating(true);
     try {
       const res = await authService.regenerateApiKey();
-      authStore.setApiKeyPrefix(res.prefix);
+      authStore.setApiKey(res.key);
       setNewKey(res.key);
-      setNewPrefix(res.prefix);
     } catch (err) {
       setRegenError(err instanceof Error ? err.message : "Failed to regenerate API key.");
     } finally {
@@ -95,13 +95,13 @@ export function Settings() {
     }
   };
 
-  const handleCopyPrefix = async () => {
-    const text = newPrefix ?? apiKeyPrefix ?? "";
+  const handleCopyMain = async () => {
+    const text = storedKey ?? "";
     if (!text) return;
     const ok = await copyText(text);
     if (ok) {
-      setCopiedPrefix(true);
-      setTimeout(() => setCopiedPrefix(false), 2000);
+      setCopiedMain(true);
+      setTimeout(() => setCopiedMain(false), 2000);
     } else {
       setCopyError(true);
       setTimeout(() => setCopyError(false), 3000);
@@ -119,7 +119,6 @@ export function Settings() {
 
   const handleDismissNew = () => {
     setNewKey(null);
-    setNewPrefix(null);
     setCopied(false);
   };
 
@@ -167,64 +166,59 @@ export function Settings() {
           </div>
           <div className="p-6 space-y-4">
 
-            {/* Current key (prefix + masked) */}
+            {/* Current key */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">API Key</label>
 
-              {/* No prefix yet — user logged in before v2.1.0 */}
-              {!apiKeyPrefix && !newPrefix ? (
+              {maskedKey ? (
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={maskedKey}
+                      readOnly
+                      className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm focus:outline-none"
+                    />
+                    <button
+                      onClick={handleCopyMain}
+                      className="flex items-center gap-2 px-4 py-2.5 border rounded-lg transition-colors text-sm font-medium"
+                      style={
+                        copyError  ? { borderColor: "#ef4444", backgroundColor: "#fef2f2", color: "#dc2626" } :
+                        copiedMain ? { borderColor: "#16a34a", backgroundColor: "#f0fdf4", color: "#16a34a" } :
+                                     { borderColor: "#d1d5db", backgroundColor: "white",   color: "#374151" }
+                      }
+                    >
+                      {copyError
+                        ? <><AlertTriangle className="w-4 h-4" /><span>Failed</span></>
+                        : copiedMain
+                        ? <><CheckCircle className="w-4 h-4" /><span>Copied</span></>
+                        : <><Copy className="w-4 h-4" /><span>Copy</span></>}
+                    </button>
+                  </div>
+                  {copyError && (
+                    <p className="text-xs text-red-600 mt-1.5">
+                      Clipboard access denied — select the key manually and press Ctrl+C / Cmd+C.
+                    </p>
+                  )}
+                </>
+              ) : (
                 <div className="flex items-start gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
                   <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>
-                    Your API key identifier isn't loaded yet.{" "}
-                    <strong>Log out and back in</strong>, or click{" "}
-                    <strong>Regenerate</strong> to get a new key now.
-                  </span>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newPrefix ? `${newPrefix}${"•".repeat(32)}` : maskedKey}
-                    readOnly
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm focus:outline-none"
-                  />
-                  <button
-                    onClick={handleCopyPrefix}
-                    title="Copy key identifier"
-                    className="flex items-center gap-2 px-4 py-2.5 border rounded-lg transition-colors text-sm font-medium"
-                    style={
-                      copyError    ? { borderColor: "#ef4444", backgroundColor: "#fef2f2", color: "#dc2626" } :
-                      copiedPrefix ? { borderColor: "#16a34a", backgroundColor: "#f0fdf4", color: "#16a34a" } :
-                                     { borderColor: "#d1d5db", backgroundColor: "white",   color: "#6b7280" }
-                    }
-                  >
-                    {copyError
-                      ? <><AlertTriangle className="w-4 h-4" /><span>Failed</span></>
-                      : copiedPrefix
-                      ? <><CheckCircle className="w-4 h-4" /><span>Copied</span></>
-                      : <><Copy className="w-4 h-4" /><span>Copy</span></>}
-                  </button>
+                  <span>No API key found. Log out and back in to load your key, or click <strong>Regenerate</strong> below.</span>
                 </div>
               )}
+            </div>
 
-              {/* Re-generate button — always visible */}
-              <div className="mt-2">
-                <button
-                  onClick={handleRegenerate}
-                  disabled={regenerating}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-gray-700"
-                >
-                  <RefreshCw className={`w-4 h-4 ${regenerating ? "animate-spin" : ""}`} />
-                  {regenerating ? "Regenerating…" : "Regenerate key"}
-                </button>
-              </div>
-
-              {copyError && (
-                <p className="text-xs text-red-600 mt-1.5">
-                  Clipboard access denied. Select the key text manually and press Ctrl+C / Cmd+C.
-                </p>
-              )}
+            {/* Regenerate button */}
+            <div>
+              <button
+                onClick={handleRegenerate}
+                disabled={regenerating}
+                className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-gray-700"
+              >
+                <RefreshCw className={`w-4 h-4 ${regenerating ? "animate-spin" : ""}`} />
+                {regenerating ? "Regenerating…" : "Regenerate key"}
+              </button>
             </div>
 
             {/* Regenerate error */}
@@ -241,7 +235,7 @@ export function Settings() {
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
                   <p className="text-sm font-semibold text-amber-900">
-                    Copy your new API key now — it will not be shown again.
+                    New key generated — copy it now. The old key is already invalidated.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -257,14 +251,11 @@ export function Settings() {
                     style={{ backgroundColor: copied ? "#16a34a" : BRAND.primary }}
                   >
                     {copied
-                      ? <><CheckCircle className="w-4 h-4" /> Copied!</>
-                      : <><Copy className="w-4 h-4" /> Copy</>}
+                      ? <><CheckCircle className="w-4 h-4" /><span>Copied!</span></>
+                      : <><Copy className="w-4 h-4" /><span>Copy</span></>}
                   </button>
                 </div>
-                <button
-                  onClick={handleDismissNew}
-                  className="text-xs text-amber-700 hover:text-amber-900 underline"
-                >
+                <button onClick={handleDismissNew} className="text-xs text-amber-700 hover:text-amber-900 underline">
                   I've saved it — dismiss
                 </button>
               </div>
