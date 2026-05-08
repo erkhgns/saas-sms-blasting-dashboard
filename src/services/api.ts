@@ -2,7 +2,7 @@ import { logger } from "@/utils/logger";
 import { authStore } from "@/utils/auth.store";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
-const API_KEY = import.meta.env.VITE_API_KEY ?? "";
+const ENV_API_KEY = import.meta.env.VITE_API_KEY ?? "";
 const API_TIMEOUT_MS = 15_000;
 
 // Routes that require x-api-key (ESP32 + frontend shared)
@@ -16,6 +16,18 @@ function needsApiKey(path: string) {
 
 function isPublic(path: string) {
   return PUBLIC_PREFIXES.some((p) => path.startsWith(p));
+}
+
+/**
+ * Resolve the x-api-key to send.
+ * Preference order:
+ *  1. VITE_API_KEY env var (global ESP32/server key — set in production .env)
+ *  2. User's personal API key from authStore (sk_... stored on login)
+ *  3. Empty string (no key — server may still accept Bearer-only for some routes)
+ */
+function resolveApiKey(): string {
+  if (ENV_API_KEY) return ENV_API_KEY;
+  return authStore.getApiKey() ?? "";
 }
 
 export class ApiError extends Error {
@@ -66,7 +78,7 @@ async function request<T>(
   };
 
   if (!isPublic(path)) {
-    if (needsApiKey(path)) headers["x-api-key"] = API_KEY;
+    if (needsApiKey(path)) headers["x-api-key"] = resolveApiKey();
     const accessToken = authStore.getAccessToken();
     if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
   }
