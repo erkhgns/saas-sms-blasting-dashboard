@@ -45,8 +45,8 @@ export function Dashboard() {
         {kpiData.map((kpi) => (
           <div key={kpi.label} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FFF4EF' }}>
-                <kpi.icon className="w-6 h-6" style={{ color: '#FF5F1F' }} />
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FCF4B5' }}>
+                <kpi.icon className="w-6 h-6" style={{ color: '#FF692E' }} />
               </div>
               <div className={`flex items-center gap-1 text-sm font-medium ${
                 kpi.trend === "up" ? "text-green-600" : "text-red-600"
@@ -73,7 +73,7 @@ export function Dashboard() {
               contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
               labelStyle={{ color: "#374151", fontWeight: 600 }}
             />
-            <Line type="monotone" dataKey="sent" stroke="#FF5F1F" strokeWidth={2} dot={{ fill: "#FF5F1F", r: 4 }} />
+            <Line type="monotone" dataKey="sent" stroke="#FF692E" strokeWidth={2} dot={{ fill: "#FF692E", r: 4 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -111,8 +111,8 @@ export function Dashboard() {
           <div className="space-y-4">
             {recentReplies.map((reply, index) => (
               <div key={index} className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FFF4EF' }}>
-                  <span className="text-sm font-medium" style={{ color: '#FF5F1F' }}>{reply.name.split(' ').map(n => n[0]).join('')}</span>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FCF4B5' }}>
+                  <span className="text-sm font-medium" style={{ color: '#FF692E' }}>{reply.name.split(' ').map(n => n[0]).join('')}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">

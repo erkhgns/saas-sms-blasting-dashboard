@@ -46,9 +46,9 @@ export function Reports() {
           </button>
           <button
             className="flex items-center gap-2 px-4 py-2.5 text-white font-semibold rounded-lg transition-colors"
-            style={{ backgroundColor: '#FF5F1F' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E54E0F'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF5F1F'}
+            style={{ backgroundColor: '#FF692E' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E55829'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF692E'}
           >
             <Download className="w-5 h-5" />
             Export
@@ -93,7 +93,7 @@ export function Reports() {
               labelStyle={{ color: "#374151", fontWeight: 600 }}
             />
             <Legend />
-            <Bar dataKey="sent" fill="#FF5F1F" name="Sent" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="sent" fill="#FF692E" name="Sent" radius={[4, 4, 0, 0]} />
             <Bar dataKey="delivered" fill="#FFF200" name="Delivered" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

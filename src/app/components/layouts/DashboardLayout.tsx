@@ -37,11 +37,11 @@ export function DashboardLayout() {
                     : "text-gray-700 hover:bg-gray-50"
                 }`
               }
-              style={({ isActive }) => isActive ? { backgroundColor: '#FFF4EF' } : {}}
+              style={({ isActive }) => isActive ? { backgroundColor: '#FCF4B5' } : {}}
             >
               {({ isActive }) => (
                 <>
-                  <item.icon className="w-5 h-5" style={isActive ? { color: '#FF5F1F' } : { color: '#6b7280' }} />
+                  <item.icon className="w-5 h-5" style={isActive ? { color: '#FF692E' } : { color: '#6b7280' }} />
                   <span className="font-medium">{item.label}</span>
                 </>
               )}
@@ -76,7 +76,7 @@ export function DashboardLayout() {
                   <div className="text-sm font-medium text-gray-900">John Smith</div>
                   <div className="text-xs text-gray-500">Admin</div>
                 </div>
-                <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FF5F1F' }}>
+                <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FF692E' }}>
                   <span className="text-sm font-medium text-white">JS</span>
                 </div>
               </div>

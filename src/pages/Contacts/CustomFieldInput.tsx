@@ -7,8 +7,8 @@ interface CustomFieldInputProps {
 }
 
 const focusOrange = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
-  e.target.style.borderColor = "#FF5F1F";
-  e.target.style.boxShadow = "0 0 0 2px rgba(255, 95, 31, 0.18)";
+  e.target.style.borderColor = "#FF692E";
+  e.target.style.boxShadow = "0 0 0 2px rgba(255, 105, 46, 0.18)";
 };
 const blurOrange = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
   e.target.style.borderColor = "#d1d5db";

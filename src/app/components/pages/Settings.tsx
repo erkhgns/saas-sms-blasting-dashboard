@@ -128,10 +128,10 @@ export function Settings() {
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" defaultChecked className="sr-only peer" />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" style={{ '--tw-ring-color': 'rgba(255, 95, 31, 0.3)' } as any}></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" style={{ '--tw-ring-color': 'rgba(255, 105, 46, 0.3)' } as any}></div>
                 <style>{`
                   input:checked + div {
-                    background-color: #FF5F1F !important;
+                    background-color: #FF692E !important;
                   }
                 `}</style>
               </label>
@@ -143,10 +143,10 @@ export function Settings() {
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" defaultChecked className="sr-only peer" />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" style={{ '--tw-ring-color': 'rgba(255, 95, 31, 0.3)' } as any}></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" style={{ '--tw-ring-color': 'rgba(255, 105, 46, 0.3)' } as any}></div>
                 <style>{`
                   input:checked + div {
-                    background-color: #FF5F1F !important;
+                    background-color: #FF692E !important;
                   }
                 `}</style>
               </label>
@@ -158,10 +158,10 @@ export function Settings() {
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" defaultChecked className="sr-only peer" />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" style={{ '--tw-ring-color': 'rgba(255, 95, 31, 0.3)' } as any}></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" style={{ '--tw-ring-color': 'rgba(255, 105, 46, 0.3)' } as any}></div>
                 <style>{`
                   input:checked + div {
-                    background-color: #FF5F1F !important;
+                    background-color: #FF692E !important;
                   }
                 `}</style>
               </label>
@@ -173,9 +173,9 @@ export function Settings() {
         <div className="flex justify-end">
           <button
             className="flex items-center gap-2 px-6 py-3 text-white font-semibold rounded-lg transition-colors shadow-sm"
-            style={{ backgroundColor: '#FF5F1F' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E54E0F'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF5F1F'}
+            style={{ backgroundColor: '#FF692E' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E55829'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF692E'}
           >
             <Save className="w-5 h-5" />
             Save Changes

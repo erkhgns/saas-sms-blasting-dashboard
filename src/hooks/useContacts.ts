@@ -1,25 +1,27 @@
 import { useState, useEffect, useCallback } from "react";
 import { contactsService } from "@/services";
-import type { Contact, ContactsResponse } from "@/types";
+import { authStore } from "@/utils/auth.store";
+import type { Contact, ContactsListMeta } from "@/types";
 
 interface UseContactsOptions {
   page?: number;
-  pageSize?: number;
+  limit?: number;
   search?: string;
   tag?: string;
 }
 
 interface UseContactsReturn {
   contacts: Contact[];
-  total: number;
+  meta: ContactsListMeta | null;
   loading: boolean;
   error: string | null;
   refetch: () => void;
 }
 
 export function useContacts(options: UseContactsOptions = {}): UseContactsReturn {
-  const { page = 1, pageSize = 10, search, tag } = options;
-  const [data, setData] = useState<ContactsResponse | null>(null);
+  const { page = 1, limit = 10, search, tag } = options;
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [meta, setMeta] = useState<ContactsListMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,22 +29,18 @@ export function useContacts(options: UseContactsOptions = {}): UseContactsReturn
     setLoading(true);
     setError(null);
     try {
-      const result = await contactsService.getAll(page, pageSize, search, tag);
-      setData(result);
+      const senderId = authStore.getUser()?.id ?? "";
+      const result = await contactsService.getAll({ senderId, page, limit, search, tag });
+      setContacts(result.data);
+      setMeta(result.meta);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load contacts");
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, tag]);
+  }, [page, limit, search, tag]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  return {
-    contacts: data?.data ?? [],
-    total: data?.total ?? 0,
-    loading,
-    error,
-    refetch: fetch,
-  };
+  return { contacts, meta, loading, error, refetch: fetch };
 }

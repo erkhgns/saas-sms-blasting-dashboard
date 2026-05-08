@@ -241,7 +241,7 @@ export function SendSMS() {
   const tabStyle  = (active: boolean) => active ? { borderColor: BRAND.primary, backgroundColor: BRAND.primaryLight } : {};
   const tabClass  = (active: boolean) => `flex-1 px-4 py-2.5 rounded-lg border-2 font-medium transition-colors ${active ? "text-gray-900" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`;
   const textareaFocus = {
-    onFocus: (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>) => { e.target.style.borderColor = BRAND.primary; e.target.style.boxShadow = "0 0 0 2px rgba(255, 95, 31, 0.2)"; },
+    onFocus: (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>) => { e.target.style.borderColor = BRAND.primary; e.target.style.boxShadow = "0 0 0 2px rgba(255, 105, 46, 0.2)"; },
     onBlur:  (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>) => { e.target.style.borderColor = "#d1d5db"; e.target.style.boxShadow = "none"; },
   };
   const excludeFocus = {

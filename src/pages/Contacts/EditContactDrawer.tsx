@@ -20,7 +20,7 @@ const SUGGESTED_TAGS = ["VIP", "Active", "Repeat Customer", "New Lead", "Trial"]
 
 function focusStyle(e: React.FocusEvent<HTMLInputElement>) {
   e.target.style.borderColor = BRAND.primary;
-  e.target.style.boxShadow = "0 0 0 2px rgba(255, 95, 31, 0.18)";
+  e.target.style.boxShadow = "0 0 0 2px rgba(255, 105, 46, 0.18)";
 }
 function blurStyle(e: React.FocusEvent<HTMLInputElement>) {
   e.target.style.borderColor = "#d1d5db";
@@ -512,7 +512,7 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
               disabled={saving}
               className="px-5 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-60"
               style={{ backgroundColor: BRAND.primary }}
-              onMouseEnter={(e) => { if (!saving) e.currentTarget.style.backgroundColor = "#E54E0F"; }}
+              onMouseEnter={(e) => { if (!saving) e.currentTarget.style.backgroundColor = "#E55829"; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND.primary; }}
             >
               {saving ? "Saving..." : isCreate ? "Add Contact" : "Save changes"}

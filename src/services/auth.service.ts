@@ -1,25 +1,33 @@
 import { api } from "./api";
-import type { AuthResponse, LoginPayload, User, AccountSettings } from "@/types";
+import { authStore } from "@/utils/auth.store";
+import type { LoginPayload, LoginResponse, RegisterPayload, AuthUser, RefreshResponse } from "@/types";
 
 export const authService = {
-  login: (payload: LoginPayload) =>
-    api.post<AuthResponse>("/auth/login", payload),
+  register: (payload: RegisterPayload) =>
+    api.post<AuthUser>("/auth/register", payload),
 
-  logout: () =>
-    api.post<void>("/auth/logout", {}),
+  login: async (payload: LoginPayload): Promise<LoginResponse> => {
+    const res = await api.post<LoginResponse>("/auth/login", payload);
+    authStore.setAccessToken(res.accessToken);
+    authStore.setRefreshToken(res.refreshToken);
+    authStore.setUser(res.user);
+    return res;
+  },
 
-  getProfile: () =>
-    api.get<User>("/auth/me"),
+  refresh: async (): Promise<RefreshResponse> => {
+    const refreshToken = authStore.getRefreshToken();
+    const res = await api.post<RefreshResponse>("/auth/refresh", { refreshToken });
+    authStore.setAccessToken(res.accessToken);
+    authStore.setRefreshToken(res.refreshToken);
+    return res;
+  },
 
-  updateProfile: (payload: Partial<User>) =>
-    api.put<User>("/auth/me", payload),
-
-  getSettings: () =>
-    api.get<AccountSettings>("/auth/settings"),
-
-  updateSettings: (payload: Partial<AccountSettings>) =>
-    api.patch<AccountSettings>("/auth/settings", payload),
-
-  regenerateApiKey: (type: "production" | "test") =>
-    api.post<{ key: string }>("/auth/api-keys/regenerate", { type }),
+  logout: async (): Promise<void> => {
+    const refreshToken = authStore.getRefreshToken();
+    try {
+      await api.post<void>("/auth/logout", { refreshToken });
+    } finally {
+      authStore.clear();
+    }
+  },
 };

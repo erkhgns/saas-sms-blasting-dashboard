@@ -87,8 +87,8 @@ export function Dashboard() {
         {statCards.map((kpi) => (
           <div key={kpi.label} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="mb-4">
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFF4EF" }}>
-                <kpi.icon className="w-6 h-6" style={{ color: "#FF5F1F" }} />
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FCF4B5" }}>
+                <kpi.icon className="w-6 h-6" style={{ color: "#FF692E" }} />
               </div>
             </div>
             <div className={`text-3xl font-semibold mb-1 ${kpi.loading ? "text-gray-300 animate-pulse" : "text-gray-900"}`}>
@@ -123,7 +123,7 @@ export function Dashboard() {
                 contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
                 labelStyle={{ color: "#374151", fontWeight: 600 }}
               />
-              <Line type="monotone" dataKey="sent" stroke="#FF5F1F" strokeWidth={2} dot={{ fill: "#FF5F1F", r: 4 }} />
+              <Line type="monotone" dataKey="sent" stroke="#FF692E" strokeWidth={2} dot={{ fill: "#FF692E", r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
         )}

@@ -213,7 +213,7 @@ export function Campaigns() {
               style={{ outline: "none" }}
               onFocus={(e) => {
                 e.target.style.borderColor = BRAND.primary;
-                e.target.style.boxShadow = `0 0 0 2px rgba(255, 95, 31, 0.2)`;
+                e.target.style.boxShadow = `0 0 0 2px rgba(255, 105, 46, 0.2)`;
               }}
               onBlur={(e) => {
                 e.target.style.borderColor = "#d1d5db";

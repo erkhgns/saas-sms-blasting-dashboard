@@ -5,7 +5,7 @@ import { BRAND } from "@/utils";
 import { authService } from "@/services/auth.service";
 import logoMark from "/logo-mark@2x.png";
 
-const focusStyle = { borderColor: BRAND.primary, boxShadow: "0 0 0 2px rgba(255, 95, 31, 0.2)" };
+const focusStyle = { borderColor: BRAND.primary, boxShadow: "0 0 0 2px rgba(255, 105, 46, 0.2)" };
 const blurStyle = { borderColor: "#d1d5db", boxShadow: "none" };
 
 export function Login() {

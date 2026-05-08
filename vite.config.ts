@@ -31,6 +31,17 @@ export default defineConfig({
     },
   },
 
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://adaptable-curiosity-production.up.railway.app',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })

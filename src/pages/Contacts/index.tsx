@@ -255,7 +255,7 @@ export function Contacts() {
               style={{ outline: "none" }}
               onFocus={(e) => {
                 e.target.style.borderColor = BRAND.primary;
-                e.target.style.boxShadow = "0 0 0 2px rgba(255, 95, 31, 0.2)";
+                e.target.style.boxShadow = "0 0 0 2px rgba(255, 105, 46, 0.2)";
               }}
               onBlur={(e) => {
                 e.target.style.borderColor = "#d1d5db";
@@ -515,7 +515,7 @@ export function Contacts() {
             disabled={!meta || meta.page >= meta.totalPages}
             className="px-4 py-2 text-sm text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: BRAND.primary }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#E54E0F")}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#E55829")}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = BRAND.primary)}
           >
             Next

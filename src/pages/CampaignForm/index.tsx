@@ -1434,7 +1434,7 @@ export function CampaignForm({ mode }: CampaignFormProps) {
                 className="flex items-center gap-2 px-6 py-3 text-white font-semibold rounded-lg shadow-sm transition-colors"
                 style={{ backgroundColor: BRAND.primary }}
                 onMouseEnter={(e) =>
-                  (e.currentTarget.style.backgroundColor = "#E54E0F")
+                  (e.currentTarget.style.backgroundColor = "#E55829")
                 }
                 onMouseLeave={(e) =>
                   (e.currentTarget.style.backgroundColor = BRAND.primary)
@@ -1477,7 +1477,7 @@ export function CampaignForm({ mode }: CampaignFormProps) {
                   className="flex items-center gap-2 px-6 py-3 text-white font-semibold rounded-lg shadow-sm transition-colors"
                   style={{ backgroundColor: BRAND.primary }}
                   onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor = "#E54E0F")
+                    (e.currentTarget.style.backgroundColor = "#E55829")
                   }
                   onMouseLeave={(e) =>
                     (e.currentTarget.style.backgroundColor = BRAND.primary)
@@ -1503,7 +1503,7 @@ export function CampaignForm({ mode }: CampaignFormProps) {
                     style={{ backgroundColor: BRAND.primary }}
                     onMouseEnter={(e) =>
                       !saving &&
-                      (e.currentTarget.style.backgroundColor = "#E54E0F")
+                      (e.currentTarget.style.backgroundColor = "#E55829")
                     }
                     onMouseLeave={(e) =>
                       (e.currentTarget.style.backgroundColor = BRAND.primary)

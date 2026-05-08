@@ -29,9 +29,9 @@ export function Campaigns() {
         </div>
         <button
           className="px-5 py-2.5 text-white font-semibold rounded-lg transition-colors shadow-sm"
-          style={{ backgroundColor: '#FF5F1F' }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E54E0F'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF5F1F'}
+          style={{ backgroundColor: '#FF692E' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E55829'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF692E'}
         >
           + New Campaign
         </button>

@@ -38,8 +38,8 @@ export function SendSMS() {
               className="w-full h-40 px-4 py-3 border border-gray-300 rounded-lg resize-none"
               style={{ outline: 'none' }}
               onFocus={(e) => {
-                e.target.style.borderColor = '#FF5F1F';
-                e.target.style.boxShadow = '0 0 0 2px rgba(255, 95, 31, 0.2)';
+                e.target.style.borderColor = '#FF692E';
+                e.target.style.boxShadow = '0 0 0 2px rgba(255, 105, 46, 0.2)';
               }}
               onBlur={(e) => {
                 e.target.style.borderColor = '#d1d5db';
@@ -90,7 +90,7 @@ export function SendSMS() {
                           ? "text-white"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                       }`}
-                      style={selectedTags.includes(tag) ? { backgroundColor: '#FF5F1F' } : {}}
+                      style={selectedTags.includes(tag) ? { backgroundColor: '#FF692E' } : {}}
                     >
                       {tag}
                       {selectedTags.includes(tag) && (
@@ -106,8 +106,8 @@ export function SendSMS() {
                 <button
                   className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-gray-700 transition-colors"
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#FF5F1F';
-                    e.currentTarget.style.backgroundColor = '#FFF4EF';
+                    e.currentTarget.style.borderColor = '#FF692E';
+                    e.currentTarget.style.backgroundColor = '#FCF4B5';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = '#d1d5db';
@@ -134,7 +134,7 @@ export function SendSMS() {
                       ? "text-gray-900"
                       : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                   }`}
-                  style={sendNow ? { borderColor: '#FF5F1F', backgroundColor: '#FFF4EF' } : {}}
+                  style={sendNow ? { borderColor: '#FF692E', backgroundColor: '#FCF4B5' } : {}}
                 >
                   Send Now
                 </button>
@@ -145,7 +145,7 @@ export function SendSMS() {
                       ? "text-gray-900"
                       : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                   }`}
-                  style={!sendNow ? { borderColor: '#FF5F1F', backgroundColor: '#FFF4EF' } : {}}
+                  style={!sendNow ? { borderColor: '#FF692E', backgroundColor: '#FCF4B5' } : {}}
                 >
                   Schedule Later
                 </button>
@@ -186,9 +186,9 @@ export function SendSMS() {
             </div>
             <button
               className="flex items-center gap-2 px-8 py-3.5 text-white font-semibold rounded-lg transition-colors shadow-sm"
-              style={{ backgroundColor: '#FF5F1F' }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E54E0F'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF5F1F'}
+              style={{ backgroundColor: '#FF692E' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E55829'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF692E'}
             >
               <SendIcon className="w-5 h-5" />
               {sendNow ? "Send SMS" : "Schedule SMS"}

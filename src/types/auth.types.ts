@@ -1,11 +1,8 @@
-export interface User {
+export interface AuthUser {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
-  company: string;
-  role: "Admin" | "Manager" | "Viewer";
-  avatarUrl?: string;
+  phoneNumber: string;
 }
 
 export interface LoginPayload {
@@ -13,11 +10,27 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface AuthResponse {
-  token: string;
-  user: User;
+export interface RegisterPayload {
+  name: string;
+  email: string;
+  phoneNumber: string;
+  password: string;
 }
 
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthUser;
+}
+
+export interface RefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+}
+
+// Legacy aliases kept so other files don't break
+export type User = AuthUser;
+export interface AuthResponse extends LoginResponse {}
 export interface AccountSettings {
   emailNotifications: boolean;
   autoReplyDetection: boolean;

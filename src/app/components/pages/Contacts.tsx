@@ -36,9 +36,9 @@ export function Contacts() {
           </button>
           <button
             className="flex items-center gap-2 px-5 py-2.5 text-white font-semibold rounded-lg transition-colors shadow-sm"
-            style={{ backgroundColor: '#FF5F1F' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E54E0F'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF5F1F'}
+            style={{ backgroundColor: '#FF692E' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E55829'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF692E'}
           >
             <Plus className="w-5 h-5" />
             Add Contact
@@ -74,7 +74,7 @@ export function Contacts() {
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-6 py-4 text-left">
-                <input type="checkbox" className="w-4 h-4 border-gray-300 rounded" style={{ accentColor: '#FF5F1F' }} />
+                <input type="checkbox" className="w-4 h-4 border-gray-300 rounded" style={{ accentColor: '#FF692E' }} />
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone Number</th>
@@ -86,12 +86,12 @@ export function Contacts() {
             {contacts.map((contact, index) => (
               <tr key={index} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4">
-                  <input type="checkbox" className="w-4 h-4 border-gray-300 rounded" style={{ accentColor: '#FF5F1F' }} />
+                  <input type="checkbox" className="w-4 h-4 border-gray-300 rounded" style={{ accentColor: '#FF692E' }} />
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FFF4EF' }}>
-                      <span className="text-sm font-medium" style={{ color: '#FF5F1F' }}>{contact.name.split(' ').map(n => n[0]).join('')}</span>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FCF4B5' }}>
+                      <span className="text-sm font-medium" style={{ color: '#FF692E' }}>{contact.name.split(' ').map(n => n[0]).join('')}</span>
                     </div>
                     <div className="font-medium text-gray-900">{contact.name}</div>
                   </div>
@@ -130,9 +130,9 @@ export function Contacts() {
           </button>
           <button
             className="px-4 py-2 text-white rounded-lg transition-colors"
-            style={{ backgroundColor: '#FF5F1F' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E54E0F'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF5F1F'}
+            style={{ backgroundColor: '#FF692E' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E55829'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF692E'}
           >
             Next
           </button>
