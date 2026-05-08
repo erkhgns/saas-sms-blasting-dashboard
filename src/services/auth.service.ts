@@ -1,6 +1,6 @@
 import { api } from "./api";
 import { authStore } from "@/utils/auth.store";
-import type { LoginPayload, LoginResponse, RegisterPayload, AuthUser, RefreshResponse } from "@/types";
+import type { LoginPayload, LoginResponse, RegisterPayload, AuthUser, RefreshResponse, RegenerateApiKeyResponse } from "@/types";
 
 export const authService = {
   register: (payload: RegisterPayload) =>
@@ -11,8 +11,12 @@ export const authService = {
     authStore.setAccessToken(res.accessToken);
     authStore.setRefreshToken(res.refreshToken);
     authStore.setUser(res.user);
+    if (res.apiKey?.prefix) authStore.setApiKeyPrefix(res.apiKey.prefix);
     return res;
   },
+
+  regenerateApiKey: (): Promise<RegenerateApiKeyResponse> =>
+    api.post<RegenerateApiKeyResponse>("/auth/api-key/regenerate", {}),
 
   refresh: async (): Promise<RefreshResponse> => {
     const refreshToken = authStore.getRefreshToken();
