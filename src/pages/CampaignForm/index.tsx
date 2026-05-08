@@ -1283,11 +1283,10 @@ export function CampaignForm({ mode }: CampaignFormProps) {
         await campaignsService.update(campaignId, payload);
       }
 
-      // Scheduled campaigns are auto-triggered by the server — only launch
-      // immediately when the user chose "Send now".
-      if (form.sendNow) {
-        await campaignsService.launch(campaignId!);
-      }
+      // Always launch — the server transitions the status based on scheduledAt:
+      // no scheduledAt → IN_PROGRESS immediately
+      // future scheduledAt → SCHEDULED (auto-triggered by server when time arrives)
+      await campaignsService.launch(campaignId!);
 
       navigate("/campaigns");
     } catch (err) {
