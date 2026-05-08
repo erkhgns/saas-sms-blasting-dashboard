@@ -5,20 +5,36 @@ import { BRAND } from "@/utils";
 import { authStore } from "@/utils/auth.store";
 import { authService } from "@/services/auth.service";
 
-/** Copies text to clipboard with execCommand fallback for non-HTTPS / older browsers. */
-async function copyText(text: string): Promise<void> {
-  if (!text) return;
+/** Copies text — returns true if successful, false if both methods fail. */
+async function copyText(text: string): Promise<boolean> {
+  if (!text) return false;
+
+  // Method 1: modern Clipboard API
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // fall through to execCommand
+    }
+  }
+
+  // Method 2: execCommand (legacy / non-HTTPS)
   try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    // Fallback: create a temporary textarea and use execCommand
     const el = document.createElement("textarea");
     el.value = text;
-    el.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";
+    el.setAttribute("readonly", "");
+    // Must be visible & on-screen for select() to work in all browsers
+    el.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none";
     document.body.appendChild(el);
+    el.focus();
     el.select();
-    document.execCommand("copy");
+    el.setSelectionRange(0, text.length); // required for iOS
+    const ok = document.execCommand("copy");
     document.body.removeChild(el);
+    return ok;
+  } catch {
+    return false;
   }
 }
 
@@ -61,6 +77,7 @@ export function Settings() {
   const [regenError, setRegenError]       = useState<string | null>(null);
   const [copied, setCopied]               = useState(false);       // for new-key panel
   const [copiedPrefix, setCopiedPrefix]   = useState(false);       // for main key button
+  const [copyError, setCopyError]         = useState(false);       // feedback when copy fails
 
   const handleRegenerate = async () => {
     setRegenError(null);
@@ -81,16 +98,23 @@ export function Settings() {
   const handleCopyPrefix = async () => {
     const text = newPrefix ?? apiKeyPrefix ?? "";
     if (!text) return;
-    await copyText(text);
-    setCopiedPrefix(true);
-    setTimeout(() => setCopiedPrefix(false), 2000);
+    const ok = await copyText(text);
+    if (ok) {
+      setCopiedPrefix(true);
+      setTimeout(() => setCopiedPrefix(false), 2000);
+    } else {
+      setCopyError(true);
+      setTimeout(() => setCopyError(false), 3000);
+    }
   };
 
   const handleCopyNew = async () => {
     if (!newKey) return;
-    await copyText(newKey);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const ok = await copyText(newKey);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleDismissNew = () => {
@@ -146,42 +170,64 @@ export function Settings() {
             {/* Current key (prefix + masked) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">API Key</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newPrefix ? `${newPrefix}${"•".repeat(32)}` : maskedKey}
-                  readOnly
-                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm focus:outline-none"
-                />
-                <button
-                  onClick={handleCopyPrefix}
-                  title="Copy key identifier"
-                  className="flex items-center gap-2 px-4 py-2.5 border rounded-lg transition-colors"
-                  style={copiedPrefix
-                    ? { borderColor: "#16a34a", backgroundColor: "#f0fdf4", color: "#16a34a" }
-                    : { borderColor: "#d1d5db", backgroundColor: "white",   color: "#6b7280" }}
-                >
-                  {copiedPrefix
-                    ? <><CheckCircle className="w-4 h-4" /><span className="text-sm font-medium">Copied</span></>
-                    : <Copy className="w-4 h-4" />}
-                </button>
+
+              {/* No prefix yet — user logged in before v2.1.0 */}
+              {!apiKeyPrefix && !newPrefix ? (
+                <div className="flex items-start gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>
+                    Your API key identifier isn't loaded yet.{" "}
+                    <strong>Log out and back in</strong>, or click{" "}
+                    <strong>Regenerate</strong> to get a new key now.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newPrefix ? `${newPrefix}${"•".repeat(32)}` : maskedKey}
+                    readOnly
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm focus:outline-none"
+                  />
+                  <button
+                    onClick={handleCopyPrefix}
+                    title="Copy key identifier"
+                    className="flex items-center gap-2 px-4 py-2.5 border rounded-lg transition-colors text-sm font-medium"
+                    style={
+                      copyError    ? { borderColor: "#ef4444", backgroundColor: "#fef2f2", color: "#dc2626" } :
+                      copiedPrefix ? { borderColor: "#16a34a", backgroundColor: "#f0fdf4", color: "#16a34a" } :
+                                     { borderColor: "#d1d5db", backgroundColor: "white",   color: "#6b7280" }
+                    }
+                  >
+                    {copyError
+                      ? <><AlertTriangle className="w-4 h-4" /><span>Failed</span></>
+                      : copiedPrefix
+                      ? <><CheckCircle className="w-4 h-4" /><span>Copied</span></>
+                      : <><Copy className="w-4 h-4" /><span>Copy</span></>}
+                  </button>
+                </div>
+              )}
+
+              {/* Re-generate button — always visible */}
+              <div className="mt-2">
                 <button
                   onClick={handleRegenerate}
                   disabled={regenerating}
                   className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-gray-700"
                 >
                   <RefreshCw className={`w-4 h-4 ${regenerating ? "animate-spin" : ""}`} />
-                  {regenerating ? "Regenerating…" : "Regenerate"}
+                  {regenerating ? "Regenerating…" : "Regenerate key"}
                 </button>
               </div>
-              {apiKeyPrefix && (
-                <p className="text-xs text-gray-400 mt-1.5">
-                  Key identifier: <span className="font-mono text-gray-500">{newPrefix ?? apiKeyPrefix}</span>
+
+              {copyError && (
+                <p className="text-xs text-red-600 mt-1.5">
+                  Clipboard access denied. Select the key text manually and press Ctrl+C / Cmd+C.
                 </p>
               )}
             </div>
 
-            {/* Error */}
+            {/* Regenerate error */}
             {regenError && (
               <div className="flex items-start gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
                 <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
