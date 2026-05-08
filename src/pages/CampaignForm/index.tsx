@@ -111,7 +111,7 @@ function TokenPicker({
 
 function PhonePreview({
   message,
-  senderName = "SMSBlast",
+  senderName = "GabySMS",
 }: {
   message: string;
   senderName?: string;
@@ -508,7 +508,7 @@ function ExclusionsSection({
 
 // ── Step components ───────────────────────────────────────────────────────────
 
-const SENDER_NAMES = ["SMSBlast", "AcmeCorp", "SHOP-PH"];
+const SENDER_NAMES = ["GabySMS", "AcmeCorp", "SHOP-PH"];
 const inputClass =
   "w-full px-4 py-2.5 border border-gray-300 rounded-lg outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 text-sm";
 
@@ -1069,7 +1069,7 @@ function seedForm(c: Campaign): CampaignFormState {
     name:           c.name,
     status:         c.status,
     message:        c.message ?? "",
-    senderName:     c.senderName ?? "SMSBlast",
+    senderName:     c.senderName ?? "GabySMS",
     priority:       c.priority ?? 0,
     group:          c.recipientGroup ?? "all",
     includeTags:    c.includeTags ?? [],
@@ -1106,7 +1106,7 @@ function buildPayload(
   return {
     senderId,
     name:           form.name.trim(),
-    senderName:     form.senderName || "SMSBlast",
+    senderName:     form.senderName || "GabySMS",
     message:        form.message.trim(),
     priority:       form.priority,
     recipientGroup: form.segmentId ? undefined : form.group,

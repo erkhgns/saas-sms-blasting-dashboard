@@ -42,7 +42,7 @@ export interface Campaign {
   id: string;
   name: string;
   status: CampaignStatus;
-  /** Alphanumeric sender displayed to recipients, e.g. "SMSBlast" */
+  /** Alphanumeric sender displayed to recipients, e.g. "GabySMS" */
   senderName: string;
   message: string;
   priority: CampaignPriority;
@@ -140,7 +140,7 @@ export function emptyCampaignForm(): CampaignFormState {
     name: "",
     status: "DRAFT",
     message: "",
-    senderName: "SMSBlast",
+    senderName: "GabySMS",
     priority: 0,
     group: "all",
     includeTags: [],

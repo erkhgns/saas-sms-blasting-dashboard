@@ -1,5 +1,6 @@
 import { Outlet, NavLink } from "react-router";
 import { LayoutDashboard, Send, BarChart3, Users, MessageSquare, FileText, Settings, Bell, ChevronDown } from "lucide-react";
+import logoMark from "/logo-mark@2x.png";
 
 export function DashboardLayout() {
   const navItems = [
@@ -18,10 +19,8 @@ export function DashboardLayout() {
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-gray-200">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#FF5F1F' }}>
-              <Send className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-semibold text-gray-900">SMSBlast</span>
+            <img src={logoMark} alt="Gaby SMS" className="w-8 h-8 rounded-lg object-cover" />
+            <span className="font-semibold text-gray-900">Gaby SMS</span>
           </div>
         </div>
 
