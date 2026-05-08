@@ -56,7 +56,6 @@ function RowMenu({ campaign, onLaunch, onDelete, onDuplicate }: RowMenuProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const isLocked = LOCKED_CAMPAIGN_STATUSES.includes(campaign.status);
-  const canLaunch = campaign.status === "DRAFT" || campaign.status === "SCHEDULED";
 
   useEffect(() => {
     if (!open) return;
@@ -75,11 +74,11 @@ function RowMenu({ campaign, onLaunch, onDelete, onDuplicate }: RowMenuProps) {
     ...(!isLocked
       ? [{ label: "Edit", onClick: () => navigate(`/campaigns/${campaign.id}/edit`) }]
       : []),
-    ...(canLaunch
-      ? [{
-          label: campaign.status === "SCHEDULED" ? "Launch now" : "Launch",
-          onClick: () => { setOpen(false); onLaunch(campaign.id); },
-        }]
+    // DRAFT → launch immediately; SCHEDULED → launch early (skips auto-trigger wait)
+    ...(campaign.status === "DRAFT"
+      ? [{ label: "Launch", onClick: () => { setOpen(false); onLaunch(campaign.id); } }]
+      : campaign.status === "SCHEDULED"
+      ? [{ label: "Launch now (send early)", onClick: () => { setOpen(false); onLaunch(campaign.id); } }]
       : []),
     { label: "Duplicate", onClick: () => { setOpen(false); onDuplicate(campaign.id); } },
     ...(!isLocked
@@ -246,7 +245,7 @@ export function Campaigns() {
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {["Campaign Name", "Status", "Recipients", "Delivery Rate", "Date", ""].map(
+              {["Campaign Name", "Status", "Recipients", "Delivery Rate", "Date / Scheduled", ""].map(
                 (col, i) => (
                   <th
                     key={i}
@@ -292,8 +291,9 @@ export function Campaigns() {
                       month: "short", day: "numeric", year: "numeric",
                     })
                   : campaign.status === "SCHEDULED" && campaign.scheduledAt
-                  ? new Date(campaign.scheduledAt).toLocaleDateString("en-PH", {
+                  ? new Date(campaign.scheduledAt).toLocaleString("en-PH", {
                       month: "short", day: "numeric", year: "numeric",
+                      hour: "numeric", minute: "2-digit",
                     })
                   : "—";
 

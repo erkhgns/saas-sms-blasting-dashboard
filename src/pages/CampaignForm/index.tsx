@@ -993,8 +993,8 @@ function StepScheduleOrPerformance({
         </div>
       )}
       <p className="mt-4 text-xs text-gray-400">
-        Note: "Schedule for later" stores the time on the campaign. To trigger
-        a scheduled campaign early, use Launch from the campaign list.
+        Scheduled campaigns are automatically sent when their time arrives — no
+        manual action needed. To send early, use "Launch now" from the campaign list.
       </p>
     </SectionCard>
   );
@@ -1231,6 +1231,8 @@ export function CampaignForm({ mode }: CampaignFormProps) {
     if (s === 4 && !form.sendNow) {
       if (!form.scheduledDate) return "Please select a date.";
       if (!form.scheduledTime) return "Please select a time.";
+      const scheduled = new Date(`${form.scheduledDate}T${form.scheduledTime}`);
+      if (scheduled <= new Date()) return "Scheduled time must be in the future.";
     }
     return null;
   };
@@ -1281,7 +1283,12 @@ export function CampaignForm({ mode }: CampaignFormProps) {
         await campaignsService.update(campaignId, payload);
       }
 
-      await campaignsService.launch(campaignId!);
+      // Scheduled campaigns are auto-triggered by the server — only launch
+      // immediately when the user chose "Send now".
+      if (form.sendNow) {
+        await campaignsService.launch(campaignId!);
+      }
+
       navigate("/campaigns");
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
