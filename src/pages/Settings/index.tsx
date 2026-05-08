@@ -5,6 +5,23 @@ import { BRAND } from "@/utils";
 import { authStore } from "@/utils/auth.store";
 import { authService } from "@/services/auth.service";
 
+/** Copies text to clipboard with execCommand fallback for non-HTTPS / older browsers. */
+async function copyText(text: string): Promise<void> {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Fallback: create a temporary textarea and use execCommand
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand("copy");
+    document.body.removeChild(el);
+  }
+}
+
 // ─── Toggle ──────────────────────────────────────────────────────────────────
 
 function Toggle({ defaultChecked }: { defaultChecked?: boolean }) {
@@ -42,7 +59,8 @@ export function Settings() {
   const [newKey, setNewKey]               = useState<string | null>(null);   // full key shown once
   const [newPrefix, setNewPrefix]         = useState<string | null>(null);
   const [regenError, setRegenError]       = useState<string | null>(null);
-  const [copied, setCopied]               = useState(false);
+  const [copied, setCopied]               = useState(false);       // for new-key panel
+  const [copiedPrefix, setCopiedPrefix]   = useState(false);       // for main key button
 
   const handleRegenerate = async () => {
     setRegenError(null);
@@ -60,9 +78,17 @@ export function Settings() {
     }
   };
 
-  const handleCopyNew = () => {
+  const handleCopyPrefix = async () => {
+    const text = newPrefix ?? apiKeyPrefix ?? "";
+    if (!text) return;
+    await copyText(text);
+    setCopiedPrefix(true);
+    setTimeout(() => setCopiedPrefix(false), 2000);
+  };
+
+  const handleCopyNew = async () => {
     if (!newKey) return;
-    navigator.clipboard.writeText(newKey);
+    await copyText(newKey);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -128,11 +154,16 @@ export function Settings() {
                   className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm focus:outline-none"
                 />
                 <button
-                  onClick={() => navigator.clipboard.writeText(newPrefix ?? apiKeyPrefix ?? "")}
-                  title="Copy prefix"
-                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={handleCopyPrefix}
+                  title="Copy key identifier"
+                  className="flex items-center gap-2 px-4 py-2.5 border rounded-lg transition-colors"
+                  style={copiedPrefix
+                    ? { borderColor: "#16a34a", backgroundColor: "#f0fdf4", color: "#16a34a" }
+                    : { borderColor: "#d1d5db", backgroundColor: "white",   color: "#6b7280" }}
                 >
-                  <Copy className="w-4 h-4 text-gray-500" />
+                  {copiedPrefix
+                    ? <><CheckCircle className="w-4 h-4" /><span className="text-sm font-medium">Copied</span></>
+                    : <Copy className="w-4 h-4" />}
                 </button>
                 <button
                   onClick={handleRegenerate}
