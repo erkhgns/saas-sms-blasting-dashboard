@@ -61,6 +61,8 @@ export interface BulkSmsPayload {
   receivers: string[];
   senderId: string;
   priority?: 0 | 1 | 2;
+  /** ISO 8601 datetime — omit or null to send immediately */
+  scheduledAt?: string | null;
 }
 
 export interface BulkSmsResponse {

@@ -186,6 +186,16 @@ export function SendSMS() {
     setSendSuccess(null);
     if (!message.trim()) { setSendError("Please enter a message."); return; }
 
+    // Schedule validation
+    let scheduledAt: string | null = null;
+    if (!sendNow) {
+      if (!scheduledDate) { setSendError("Please select a date."); return; }
+      if (!scheduledTime) { setSendError("Please select a time."); return; }
+      const scheduled = new Date(`${scheduledDate}T${scheduledTime}`);
+      if (scheduled <= new Date()) { setSendError("Scheduled time must be in the future."); return; }
+      scheduledAt = scheduled.toISOString();
+    }
+
     const priorityValue = PRIORITY_FROM_LABEL[priority as keyof typeof PRIORITY_FROM_LABEL];
     setSending(true);
 
@@ -218,10 +228,22 @@ export function SendSMS() {
         }
       }
 
-      const result = await messagesService.createBulkSms({ content: message, receivers: numbers, senderId, priority: priorityValue });
+      const result = await messagesService.createBulkSms({
+        content: message,
+        receivers: numbers,
+        senderId,
+        priority: priorityValue,
+        ...(scheduledAt ? { scheduledAt } : {}),
+      });
 
-      setSendSuccess(`${result.count} message${result.count !== 1 ? "s" : ""} queued successfully!`);
+      const successMsg = scheduledAt
+        ? `${result.count} message${result.count !== 1 ? "s" : ""} scheduled for ${new Date(scheduledAt).toLocaleString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}`
+        : `${result.count} message${result.count !== 1 ? "s" : ""} queued successfully!`;
+      setSendSuccess(successMsg);
       setMessage("");
+      setScheduledDate("");
+      setScheduledTime("");
+      setSendNow(true);
 
       if (recipientType === "manual") { setManualNumbers(""); setExcludeNumbers(""); }
       if (recipientType === "contacts") { setSelectedGroupId("all"); setSelectedTags([]); setExcludeNumbers(""); }
@@ -559,19 +581,24 @@ export function SendSMS() {
                 ))}
               </div>
               {!sendNow && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-2">Date</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg" style={{ outline: "none" }} />
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-2">Date</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg" style={{ outline: "none" }} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-2">Time</label>
+                      <input type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" style={{ outline: "none" }} />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-2">Time</label>
-                    <input type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" style={{ outline: "none" }} />
-                  </div>
-                </div>
+                  <p className="text-xs text-gray-400">
+                    Messages will be delivered automatically when the scheduled time arrives.
+                  </p>
+                </>
               )}
             </div>
           </div>
