@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Columns3 } from "lucide-react";
+import { Columns3, Braces } from "lucide-react";
 import { BRAND } from "@/utils";
 import { useTokens } from "@/hooks";
 
@@ -14,7 +14,7 @@ export function ColumnVisibilityMenu({
 }: ColumnVisibilityMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const { tokens } = useTokens();
+  const { tokens, loading } = useTokens();
 
   // Close on outside click
   useEffect(() => {
@@ -50,7 +50,7 @@ export function ColumnVisibilityMenu({
 
       {open && (
         <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-xl shadow-xl border border-gray-200 z-30 overflow-hidden">
-          {/* Default columns header */}
+          {/* Default columns */}
           <div className="px-4 py-2.5 border-b border-gray-100">
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
               Default columns
@@ -60,40 +60,48 @@ export function ColumnVisibilityMenu({
             Name, Phone, Tags, Status (always shown)
           </div>
 
-          {/* Custom fields header */}
+          {/* Custom token columns */}
           <div className="px-4 py-2.5 border-y border-gray-100 flex items-center justify-between">
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Custom fields
+              Custom token fields
             </div>
-            <a
-              href="#"
-              className="text-[11px] hover:underline"
-              style={{ color: BRAND.primary }}
-            >
-              Manage
-            </a>
           </div>
 
-          {/* Token list */}
           <div className="max-h-64 overflow-y-auto">
-            {tokens.map((t) => (
-              <label
-                key={t.key}
-                className="flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={visibleCustomCols.includes(t.key)}
-                  onChange={() => toggle(t.key)}
-                  style={{ accentColor: BRAND.primary }}
-                  className="w-4 h-4"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-gray-900 truncate">{t.label}</div>
-                  <div className="text-[11px] text-gray-400 font-mono truncate">{`{{${t.key}}}`}</div>
-                </div>
-              </label>
-            ))}
+            {loading ? (
+              <div className="px-4 py-3 space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />
+                ))}
+              </div>
+            ) : tokens.length === 0 ? (
+              <div className="px-4 py-4 text-center">
+                <Braces className="w-5 h-5 text-gray-300 mx-auto mb-1" />
+                <p className="text-xs text-gray-400">No tokens defined yet.</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Add tokens in Settings → Custom Tokens.
+                </p>
+              </div>
+            ) : (
+              tokens.map((t) => (
+                <label
+                  key={t.key}
+                  className="flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={visibleCustomCols.includes(t.key)}
+                    onChange={() => toggle(t.key)}
+                    style={{ accentColor: BRAND.primary }}
+                    className="w-4 h-4"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-gray-900 truncate">{t.label}</div>
+                    <div className="text-[11px] text-gray-400 font-mono truncate">{`{{${t.key}}}`}</div>
+                  </div>
+                </label>
+              ))
+            )}
           </div>
         </div>
       )}

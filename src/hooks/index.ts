@@ -10,4 +10,5 @@ export * from "./useReports";
 export * from "./useSegments";
 export * from "./useSmsLogs";
 export * from "./useTokens";
+export * from "./useTags";
 export * from "./useDeviceLogs";

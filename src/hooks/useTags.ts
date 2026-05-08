@@ -1,19 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
-import { tokensService } from "@/services/tokens.service";
+import { tagsService } from "@/services/tags.service";
 import { authStore } from "@/utils/auth.store";
-import type { ApiToken } from "@/types";
+import type { Tag } from "@/types";
 
-interface UseTokensReturn {
-  tokens: ApiToken[];
+interface UseTagsReturn {
+  tags: Tag[];
   loading: boolean;
   error: string | null;
   refetch: () => void;
 }
 
-export function useTokens(): UseTokensReturn {
-  const [tokens, setTokens] = useState<ApiToken[]>([]);
+export function useTags(): UseTagsReturn {
+  const [tags, setTags]   = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
   const senderId = authStore.getUser()?.id ?? "";
 
@@ -21,11 +21,11 @@ export function useTokens(): UseTokensReturn {
     if (!senderId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await tokensService.getAll(senderId);
-      setTokens(data);
+      const data = await tagsService.getAll(senderId);
+      setTags(data);
       setError(null);
     } catch {
-      setError("Failed to load tokens.");
+      setError("Failed to load tags.");
     } finally {
       setLoading(false);
     }
@@ -33,5 +33,5 @@ export function useTokens(): UseTokensReturn {
 
   useEffect(() => { load(); }, [load]);
 
-  return { tokens, loading, error, refetch: load };
+  return { tags, loading, error, refetch: load };
 }

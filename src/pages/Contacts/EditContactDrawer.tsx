@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
-import { X, User, Braces, Clock, Search, Check, Tag, ArrowUpRight, Trash2, Sparkles, Ban } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { X, User, Braces, Clock, Search, Check, Tag, Trash2, Sparkles, Ban } from "lucide-react";
 import { BRAND, TAG_COLORS } from "@/utils";
 import { contactsService } from "@/services";
 import { authStore } from "@/utils/auth.store";
-import { useTokens } from "@/hooks";
+import { useTokens, useTags } from "@/hooks";
 import { CustomFieldInput } from "./CustomFieldInput";
 import type { Contact } from "@/types";
 
@@ -15,8 +15,6 @@ interface EditContactDrawerProps {
 }
 
 type DrawerTab = "details" | "custom" | "activity";
-
-const SUGGESTED_TAGS = ["VIP", "Active", "Repeat Customer", "New Lead", "Trial"];
 
 function focusStyle(e: React.FocusEvent<HTMLInputElement>) {
   e.target.style.borderColor = BRAND.primary;
@@ -38,7 +36,9 @@ function getInitials(name: string) {
 
 export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDrawerProps) {
   const isCreate = contact === null;
-  const { tokens } = useTokens();
+
+  const { tokens, loading: tokensLoading } = useTokens();
+  const { tags: apiTags } = useTags();
 
   // Animate in
   const [shown, setShown] = useState(false);
@@ -58,13 +58,16 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
     return () => window.removeEventListener("keydown", h);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Form state — blank for create, seeded for edit
+  // ── Form state ────────────────────────────────────────────────────────────
   const [tab, setTab]               = useState<DrawerTab>("details");
   const [name, setName]             = useState(contact?.name ?? "");
   const [phone, setPhone]           = useState(contact?.phone ?? "");
   const [email, setEmail]           = useState(contact?.email ?? "");
   const [tags, setTags]             = useState<string[]>(contact?.tags ?? []);
   const [tagInput, setTagInput]     = useState("");
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
+  const tagInputRef = useRef<HTMLInputElement>(null);
+  const tagDropdownRef = useRef<HTMLDivElement>(null);
   const [customFields, setCustomFields] = useState<Record<string, string>>(
     contact?.customFields ?? {}
   );
@@ -73,20 +76,51 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
   const [saveError, setSaveError]   = useState<string | null>(null);
   const [deleting, setDeleting]     = useState(false);
 
-  // Tag helpers
+  // ── Tag helpers ───────────────────────────────────────────────────────────
   const addTag = (t: string) => {
     const trimmed = t.trim();
     if (trimmed && !tags.includes(trimmed)) setTags((prev) => [...prev, trimmed]);
     setTagInput("");
+    setTagDropdownOpen(false);
   };
   const removeTag = (t: string) => setTags((prev) => prev.filter((x) => x !== t));
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addTag(tagInput); }
     else if (e.key === "Backspace" && !tagInput && tags.length > 0)
       setTags((prev) => prev.slice(0, -1));
+    else if (e.key === "Escape") { setTagDropdownOpen(false); }
   };
 
-  // Custom field helpers
+  // Dropdown suggestions: API tags matching the current input, excluding already-selected
+  const dropdownSuggestions = useMemo(() => {
+    const q = tagInput.trim().toLowerCase();
+    return apiTags
+      .filter((t) => !tags.includes(t.name))
+      .filter((t) => !q || t.name.toLowerCase().includes(q));
+  }, [apiTags, tagInput, tags]);
+
+  // Close tag dropdown on outside click
+  useEffect(() => {
+    if (!tagDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        tagInputRef.current && !tagInputRef.current.contains(e.target as Node) &&
+        tagDropdownRef.current && !tagDropdownRef.current.contains(e.target as Node)
+      ) {
+        setTagDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [tagDropdownOpen]);
+
+  // Quick-add chips: API tags not yet selected (shown below input, no filter)
+  const quickAddTags = useMemo(
+    () => apiTags.filter((t) => !tags.includes(t.name)).slice(0, 8),
+    [apiTags, tags]
+  );
+
+  // ── Custom field helpers ──────────────────────────────────────────────────
   const updateCustomField = (key: string, value: string) =>
     setCustomFields((prev) => ({ ...prev, [key]: value }));
 
@@ -103,7 +137,7 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
     );
   }, [tokens, tokenSearch]);
 
-  // Save — create or update depending on mode
+  // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     setSaveError(null);
     if (!name.trim())  { setSaveError("Name is required."); return; }
@@ -118,6 +152,7 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
           phone: phone.trim(),
           email: email.trim() || undefined,
           tags,
+          customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
         });
       } else {
         await contactsService.update(contact.id, {
@@ -137,7 +172,7 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
     }
   };
 
-  // Delete (edit mode only)
+  // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!contact) return;
     if (!confirm(`Delete ${contact.name}? This cannot be undone.`)) return;
@@ -154,14 +189,16 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
 
   const initials = contact ? getInitials(contact.name) : "";
 
-  // Create mode only shows Details — no custom fields or activity yet (contact doesn't exist)
-  const tabs: { key: DrawerTab; label: string; icon: React.ReactNode; count?: number }[] = isCreate
-    ? [{ key: "details", label: "Details", icon: <User className="w-4 h-4" /> }]
-    : [
-        { key: "details",  label: "Details",       icon: <User className="w-4 h-4" /> },
-        { key: "custom",   label: "Custom fields", icon: <Braces className="w-4 h-4" />, count: filledCount },
-        { key: "activity", label: "Activity",      icon: <Clock className="w-4 h-4" /> },
-      ];
+  // Custom fields tab visible in both create and edit mode (when there are tokens)
+  const tabs: { key: DrawerTab; label: string; icon: React.ReactNode; count?: number }[] = [
+    { key: "details",  label: "Details",       icon: <User className="w-4 h-4" /> },
+    ...(tokens.length > 0 || tokensLoading
+      ? [{ key: "custom" as DrawerTab, label: "Custom Fields", icon: <Braces className="w-4 h-4" />, count: filledCount > 0 ? filledCount : undefined }]
+      : []),
+    ...(!isCreate
+      ? [{ key: "activity" as DrawerTab, label: "Activity", icon: <Clock className="w-4 h-4" /> }]
+      : []),
+  ];
 
   return (
     <>
@@ -256,7 +293,7 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
         {/* ── Body ── */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* Details tab */}
+          {/* ── Details tab ── */}
           {tab === "details" && (
             <div className="px-6 py-5 space-y-5">
               {/* Name */}
@@ -314,6 +351,8 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
               {/* Tags */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Tags</label>
+
+                {/* Selected tag pills */}
                 {tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {tags.map((t) => (
@@ -335,37 +374,83 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
                     ))}
                   </div>
                 )}
-                <div className="flex gap-2">
+
+                {/* Tag input with autocomplete dropdown */}
+                <div className="relative">
                   <input
+                    ref={tagInputRef}
                     type="text"
                     value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
+                    onChange={(e) => {
+                      setTagInput(e.target.value);
+                      setTagDropdownOpen(true);
+                    }}
                     onKeyDown={handleTagKeyDown}
-                    placeholder="Type and press Enter"
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                    onFocus={() => setTagDropdownOpen(true)}
+                    placeholder="Type a tag and press Enter…"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
                     style={{ outline: "none" }}
-                    onFocus={focusStyle}
-                    onBlur={blurStyle}
                   />
-                </div>
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {SUGGESTED_TAGS.filter((t) => !tags.includes(t)).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => addTag(t)}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-dashed border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+
+                  {/* Autocomplete dropdown */}
+                  {tagDropdownOpen && dropdownSuggestions.length > 0 && (
+                    <div
+                      ref={tagDropdownRef}
+                      className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden max-h-44 overflow-y-auto"
                     >
-                      <Tag className="w-2.5 h-2.5" />
-                      {t}
-                    </button>
-                  ))}
+                      {dropdownSuggestions.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); addTag(t.name); }}
+                          className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-orange-50 transition-colors"
+                        >
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
+                              TAG_COLORS[t.name] ?? "bg-gray-100 text-gray-700 border-gray-200"
+                            }`}
+                          >
+                            {t.name}
+                          </span>
+                        </button>
+                      ))}
+                      {/* Option to add as new tag if typed text isn't an exact match */}
+                      {tagInput.trim() &&
+                        !apiTags.some((t) => t.name.toLowerCase() === tagInput.trim().toLowerCase()) && (
+                        <button
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); addTag(tagInput); }}
+                          className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left text-gray-600 hover:bg-gray-50 border-t border-gray-100 transition-colors"
+                        >
+                          <span className="text-gray-400">Add</span>
+                          <span className="font-medium">"{tagInput.trim()}"</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+                {/* Quick-add chips from API tags */}
+                {quickAddTags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {quickAddTags.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => addTag(t.name)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-dashed border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+                      >
+                        <Tag className="w-2.5 h-2.5" />
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* Custom fields tab */}
+          {/* ── Custom fields tab ── */}
           {tab === "custom" && (
             <div className="px-6 py-5">
               {/* Helper banner */}
@@ -374,13 +459,11 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
                 <div className="text-xs text-gray-700 leading-relaxed">
                   These values fill in{" "}
                   <span className="font-mono text-orange-700 bg-orange-100 px-1 rounded">
-                    {`{{tokens}}`}
+                    {"{{tokens}}"}
                   </span>{" "}
-                  when you send a campaign. Empty fields use the fallback set in{" "}
-                  <a href="#" className="text-orange-600 hover:underline">
-                    Settings → Personalization
-                  </a>
-                  .
+                  when you send a campaign. If a contact has no value, the token is replaced with an empty string.
+                  Manage token definitions in{" "}
+                  <span className="text-orange-600 font-medium">Settings → Custom Tokens</span>.
                 </div>
               </div>
 
@@ -391,7 +474,7 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
                   type="text"
                   value={tokenSearch}
                   onChange={(e) => setTokenSearch(e.target.value)}
-                  placeholder="Search fields..."
+                  placeholder="Search tokens..."
                   className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
                   style={{ outline: "none" }}
                   onFocus={focusStyle}
@@ -399,74 +482,80 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
                 />
               </div>
 
-              {/* Field list */}
-              <div className="space-y-3.5">
-                {filteredTokens.map((token) => {
-                  const value = customFields[token.key];
-                  const filled = value != null && String(value).trim() !== "";
-                  return (
-                    <div
-                      key={token.key}
-                      className="grid grid-cols-[180px_1fr] gap-4 items-start"
-                    >
-                      {/* Label column */}
-                      <div className="pt-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-medium text-gray-900">
-                            {token.label}
-                          </span>
-                          {token.required && (
-                            <span className="text-red-500 text-xs">*</span>
-                          )}
-                          {filled && (
-                            <Check className="w-3 h-3 text-green-600" />
-                          )}
+              {/* Loading state */}
+              {tokensLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="grid grid-cols-[180px_1fr] gap-4">
+                      <div className="h-8 bg-gray-100 rounded animate-pulse" />
+                      <div className="h-8 bg-gray-100 rounded animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+              ) : tokens.length === 0 ? (
+                <div className="text-center py-10">
+                  <Braces className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm text-gray-500">No custom tokens defined yet.</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Go to <span className="font-medium">Settings → Custom Tokens</span> to add your first token.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  {filteredTokens.map((token) => {
+                    const value = customFields[token.key];
+                    const filled = value != null && String(value).trim() !== "";
+                    return (
+                      <div
+                        key={token.key}
+                        className="grid grid-cols-[180px_1fr] gap-4 items-start"
+                      >
+                        {/* Label column */}
+                        <div className="pt-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-medium text-gray-900">
+                              {token.label}
+                            </span>
+                            {filled && (
+                              <Check className="w-3 h-3 text-green-600" />
+                            )}
+                          </div>
+                          <div className="text-[11px] text-gray-400 font-mono mt-0.5">
+                            {`{{${token.key}}}`}
+                          </div>
                         </div>
-                        <div className="text-[11px] text-gray-400 font-mono mt-0.5">
-                          {`{{${token.key}}}`}
-                        </div>
-                      </div>
 
-                      {/* Input column */}
-                      <div>
+                        {/* Input column */}
                         <CustomFieldInput
                           token={token}
                           value={value}
                           onChange={(v) => updateCustomField(token.key, v)}
                         />
-                        {!filled && token.fallback && (
-                          <div className="mt-1 text-[11px] text-gray-400">
-                            Fallback:{" "}
-                            <span className="text-gray-500">"{token.fallback}"</span>
-                          </div>
-                        )}
                       </div>
+                    );
+                  })}
+
+                  {filteredTokens.length === 0 && (
+                    <div className="text-center py-8 text-sm text-gray-400">
+                      No tokens match "{tokenSearch}"
                     </div>
-                  );
-                })}
+                  )}
+                </div>
+              )}
 
-                {filteredTokens.length === 0 && (
-                  <div className="text-center py-8 text-sm text-gray-400">
-                    No fields match "{tokenSearch}"
-                  </div>
-                )}
-              </div>
-
-              {/* Manage link footer */}
-              <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-xs">
-                <span className="text-gray-400">{tokens.length} fields defined</span>
-                <a
-                  href="#"
-                  className="text-orange-600 hover:underline inline-flex items-center gap-1"
-                >
-                  Manage personalization fields
-                  <ArrowUpRight className="w-3 h-3" />
-                </a>
-              </div>
+              {/* Footer count */}
+              {!tokensLoading && tokens.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  <span className="text-xs text-gray-400">
+                    {tokens.length} token{tokens.length !== 1 ? "s" : ""} defined ·{" "}
+                    {filledCount} filled on this contact
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Activity tab */}
+          {/* ── Activity tab ── */}
           {tab === "activity" && (
             <div className="px-6 py-10 text-center">
               <Clock className="w-8 h-8 text-gray-300 mx-auto mb-3" />
