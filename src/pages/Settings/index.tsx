@@ -38,6 +38,18 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
+/**
+ * Normalize a hex color for use in <input type="color">.
+ * Expands 3-digit #abc → #aabbcc; returns brand orange as fallback.
+ */
+function toInputHex(hex: string | null | undefined): string {
+  if (!hex) return "#FF692E";
+  if (/^#[0-9a-fA-F]{3}$/.test(hex)) {
+    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+  }
+  return hex;
+}
+
 // ─── Toggle ──────────────────────────────────────────────────────────────────
 
 function Toggle({ defaultChecked }: { defaultChecked?: boolean }) {
@@ -56,6 +68,37 @@ function Toggle({ defaultChecked }: { defaultChecked?: boolean }) {
   );
 }
 
+/** Inline color-swatch button that opens the native color picker on click. */
+function ColorPicker({
+  value,
+  onChange,
+  size = "md",
+  title = "Pick a color",
+}: {
+  value: string;
+  onChange: (hex: string) => void;
+  size?: "sm" | "md";
+  title?: string;
+}) {
+  const sizeClass = size === "sm" ? "w-7 h-7" : "w-10 h-10";
+  return (
+    <label className={`relative cursor-pointer shrink-0 rounded-lg ${sizeClass}`} title={title}>
+      {/* visually-hidden native input */}
+      <input
+        type="color"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="sr-only"
+      />
+      {/* Styled swatch */}
+      <span
+        className={`block ${sizeClass} rounded-lg border-2 border-white ring-1 ring-gray-300 hover:ring-[#FF692E] transition-shadow`}
+        style={{ backgroundColor: value }}
+      />
+    </label>
+  );
+}
+
 const accountToggles = [
   { label: "Email Notifications",    desc: "Receive email alerts for campaign completions and failures" },
   { label: "Auto-reply Detection",   desc: "Automatically detect and categorize auto-replies" },
@@ -65,29 +108,28 @@ const accountToggles = [
 // ─── Tags Management Section ──────────────────────────────────────────────────
 
 function TagsSection({ senderId }: { senderId: string }) {
-  const [tags, setTags]           = useState<Tag[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
+  const [tags, setTags]       = useState<Tag[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
 
   // Add new tag
-  const [newName, setNewName]     = useState("");
-  const [adding, setAdding]       = useState(false);
-  const [addError, setAddError]   = useState<string | null>(null);
+  const [newName, setNewName]   = useState("");
+  const [newColor, setNewColor] = useState("#FF692E");
+  const [adding, setAdding]     = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
-  // Inline rename
+  // Inline edit
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName]   = useState("");
+  const [editColor, setEditColor] = useState("#FF692E");
   const [saving, setSaving]       = useState(false);
 
-  // Delete confirmation
+  // Delete confirm
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const editInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    load();
-  }, [senderId]);
-
+  useEffect(() => { load(); }, [senderId]);
   useEffect(() => {
     if (editingId && editInputRef.current) editInputRef.current.focus();
   }, [editingId]);
@@ -111,9 +153,10 @@ function TagsSection({ senderId }: { senderId: string }) {
     try {
       setAdding(true);
       setAddError(null);
-      const tag = await tagsService.create({ senderId, name });
+      const tag = await tagsService.create({ senderId, name, color: newColor });
       setTags(prev => [...prev, tag]);
       setNewName("");
+      setNewColor("#FF692E");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create tag.";
       setAddError(msg.includes("409") || msg.toLowerCase().includes("exists")
@@ -127,11 +170,13 @@ function TagsSection({ senderId }: { senderId: string }) {
   function startEdit(tag: Tag) {
     setEditingId(tag.id);
     setEditName(tag.name);
+    setEditColor(toInputHex(tag.color));
   }
 
   function cancelEdit() {
     setEditingId(null);
     setEditName("");
+    setEditColor("#FF692E");
   }
 
   async function handleSaveEdit(id: string) {
@@ -139,7 +184,7 @@ function TagsSection({ senderId }: { senderId: string }) {
     if (!name) return;
     try {
       setSaving(true);
-      const updated = await tagsService.update(id, { name });
+      const updated = await tagsService.update(id, { name, color: editColor });
       setTags(prev => prev.map(t => t.id === id ? updated : t));
       setEditingId(null);
     } catch {
@@ -153,9 +198,7 @@ function TagsSection({ senderId }: { senderId: string }) {
     try {
       await tagsService.delete(id);
       setTags(prev => prev.filter(t => t.id !== id));
-    } catch {
-      // swallow — UI stays intact
-    } finally {
+    } catch { /* swallow */ } finally {
       setDeletingId(null);
     }
   }
@@ -173,8 +216,9 @@ function TagsSection({ senderId }: { senderId: string }) {
       </div>
 
       <div className="p-6 space-y-4">
-        {/* Add new tag */}
-        <div className="flex gap-2">
+
+        {/* ── Add new tag ── */}
+        <div className="flex gap-2 items-center">
           <input
             type="text"
             value={newName}
@@ -183,6 +227,12 @@ function TagsSection({ senderId }: { senderId: string }) {
             placeholder="New tag name…"
             maxLength={50}
             className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF692E]/30 focus:border-[#FF692E]"
+          />
+          {/* Color picker swatch */}
+          <ColorPicker
+            value={newColor}
+            onChange={setNewColor}
+            title="Tag color"
           />
           <button
             onClick={handleAdd}
@@ -197,10 +247,10 @@ function TagsSection({ senderId }: { senderId: string }) {
           <p className="text-xs text-red-600 -mt-2">{addError}</p>
         )}
 
-        {/* Tag list */}
+        {/* ── Tag list ── */}
         {loading ? (
           <div className="space-y-2">
-            {[1,2,3].map(i => (
+            {[1, 2, 3].map(i => (
               <div key={i} className="h-11 bg-gray-100 rounded-lg animate-pulse" />
             ))}
           </div>
@@ -221,10 +271,23 @@ function TagsSection({ senderId }: { senderId: string }) {
                 key={tag.id}
                 className="flex items-center gap-3 px-4 py-2.5 border border-gray-200 rounded-lg group"
               >
-                <span className="w-2 h-2 rounded-full bg-[#FF692E] shrink-0" />
+                {/* Color dot — always visible, reflects tag.color */}
+                {editingId !== tag.id && deletingId !== tag.id && (
+                  <span
+                    className="w-3 h-3 rounded-full shrink-0 border border-black/10"
+                    style={{ backgroundColor: tag.color ?? "#d1d5db" }}
+                  />
+                )}
 
                 {editingId === tag.id ? (
                   <>
+                    {/* Color picker swatch in edit mode */}
+                    <ColorPicker
+                      value={editColor}
+                      onChange={setEditColor}
+                      size="sm"
+                      title="Change color"
+                    />
                     <input
                       ref={editInputRef}
                       type="text"
@@ -278,7 +341,7 @@ function TagsSection({ senderId }: { senderId: string }) {
                       <button
                         onClick={() => startEdit(tag)}
                         className="p-1.5 text-gray-400 hover:text-[#FF692E] hover:bg-orange-50 rounded-md transition-colors"
-                        title="Rename"
+                        title="Edit"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -308,28 +371,28 @@ function TagsSection({ senderId }: { senderId: string }) {
 // ─── Token Management Section ─────────────────────────────────────────────────
 
 function TokensSection({ senderId }: { senderId: string }) {
-  const [tokens, setTokens]       = useState<ApiToken[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
+  const [tokens, setTokens]   = useState<ApiToken[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
 
   // Add form
-  const [newKey, setNewKey]       = useState("");
-  const [newLabel, setNewLabel]   = useState("");
-  const [adding, setAdding]       = useState(false);
-  const [addError, setAddError]   = useState<string | null>(null);
+  const [newKey, setNewKey]         = useState("");
+  const [newLabel, setNewLabel]     = useState("");
+  const [newFallback, setNewFallback] = useState("");
+  const [adding, setAdding]         = useState(false);
+  const [addError, setAddError]     = useState<string | null>(null);
 
   // Inline edit
-  const [editingId, setEditingId]   = useState<string | null>(null);
-  const [editKey, setEditKey]       = useState("");
-  const [editLabel, setEditLabel]   = useState("");
-  const [saving, setSaving]         = useState(false);
+  const [editingId, setEditingId]       = useState<string | null>(null);
+  const [editKey, setEditKey]           = useState("");
+  const [editLabel, setEditLabel]       = useState("");
+  const [editFallback, setEditFallback] = useState("");
+  const [saving, setSaving]             = useState(false);
 
   // Delete confirm
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    load();
-  }, [senderId]);
+  useEffect(() => { load(); }, [senderId]);
 
   async function load() {
     try {
@@ -344,22 +407,23 @@ function TokensSection({ senderId }: { senderId: string }) {
     }
   }
 
-  // Sanitize token key: lowercase, replace spaces/hyphens with underscore, strip special chars
   function sanitizeKey(raw: string) {
     return raw.toLowerCase().replace(/[\s-]+/g, "_").replace(/[^a-z0-9_]/g, "");
   }
 
   async function handleAdd() {
-    const key   = sanitizeKey(newKey).trim();
-    const label = newLabel.trim();
+    const key      = sanitizeKey(newKey).trim();
+    const label    = newLabel.trim();
+    const fallback = newFallback.trim() || undefined;
     if (!key || !label) return;
     try {
       setAdding(true);
       setAddError(null);
-      const token = await tokensService.create({ senderId, key, label });
+      const token = await tokensService.create({ senderId, key, label, fallback });
       setTokens(prev => [...prev, token]);
       setNewKey("");
       setNewLabel("");
+      setNewFallback("");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create token.";
       setAddError(msg.includes("409") || msg.toLowerCase().includes("exists")
@@ -374,21 +438,24 @@ function TokensSection({ senderId }: { senderId: string }) {
     setEditingId(token.id);
     setEditKey(token.key);
     setEditLabel(token.label);
+    setEditFallback(token.fallback ?? "");
   }
 
   function cancelEdit() {
     setEditingId(null);
     setEditKey("");
     setEditLabel("");
+    setEditFallback("");
   }
 
   async function handleSaveEdit(id: string) {
-    const key   = sanitizeKey(editKey).trim();
-    const label = editLabel.trim();
+    const key      = sanitizeKey(editKey).trim();
+    const label    = editLabel.trim();
+    const fallback = editFallback.trim() || null;   // null = clear fallback
     if (!key || !label) return;
     try {
       setSaving(true);
-      const updated = await tokensService.update(id, { key, label });
+      const updated = await tokensService.update(id, { key, label, fallback });
       setTokens(prev => prev.map(t => t.id === id ? updated : t));
       setEditingId(null);
     } catch {
@@ -402,9 +469,7 @@ function TokensSection({ senderId }: { senderId: string }) {
     try {
       await tokensService.delete(id);
       setTokens(prev => prev.filter(t => t.id !== id));
-    } catch {
-      // swallow
-    } finally {
+    } catch { /* swallow */ } finally {
       setDeletingId(null);
     }
   }
@@ -417,27 +482,27 @@ function TokensSection({ senderId }: { senderId: string }) {
           <h2 className="text-lg font-semibold text-gray-900">Custom Tokens</h2>
           <p className="text-sm text-gray-600 mt-0.5">
             Define personalization tokens used in campaigns. Set matching values on contacts via{" "}
-            <code className="text-xs bg-gray-100 px-1 py-0.5 rounded font-mono">customFields</code> and they are replaced per-recipient at send time.
+            <code className="text-xs bg-gray-100 px-1 py-0.5 rounded font-mono">customFields</code>{" "}
+            and they are replaced per-recipient at send time.
           </p>
         </div>
       </div>
 
       <div className="p-6 space-y-4">
+
         {/* Info banner */}
         <div className="flex items-start gap-2.5 p-3.5 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-800">
           <Hash className="w-4 h-4 mt-0.5 shrink-0 text-[#FF692E]" />
           <p>
-            Use tokens in your message body like{" "}
+            Use tokens in message bodies like{" "}
             <code className="text-xs bg-orange-100 px-1 py-0.5 rounded font-mono">{"{{cod_value}}"}</code>.
-            Built-in tokens{" "}
-            <code className="text-xs bg-orange-100 px-1 py-0.5 rounded font-mono">{"{{first_name}}"}</code> and{" "}
-            <code className="text-xs bg-orange-100 px-1 py-0.5 rounded font-mono">{"{{name}}"}</code>{" "}
-            always work without setup.
+            The <strong>fallback</strong> is used when a contact has no value set — if neither is set the token
+            is replaced with an empty string.
           </p>
         </div>
 
-        {/* Add new token */}
-        <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+        {/* ── Add new token ── */}
+        <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Token Key</label>
             <input
@@ -460,6 +525,20 @@ function TokensSection({ senderId }: { senderId: string }) {
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF692E]/30 focus:border-[#FF692E]"
             />
           </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Fallback{" "}
+              <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={newFallback}
+              onChange={e => setNewFallback(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleAdd()}
+              placeholder="e.g. 0.00"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF692E]/30 focus:border-[#FF692E]"
+            />
+          </div>
           <div className="flex items-end">
             <button
               onClick={handleAdd}
@@ -475,10 +554,10 @@ function TokensSection({ senderId }: { senderId: string }) {
           <p className="text-xs text-red-600 -mt-2">{addError}</p>
         )}
 
-        {/* Token list */}
+        {/* ── Token list ── */}
         {loading ? (
           <div className="space-y-2">
-            {[1,2,3].map(i => (
+            {[1, 2, 3].map(i => (
               <div key={i} className="h-14 bg-gray-100 rounded-lg animate-pulse" />
             ))}
           </div>
@@ -494,17 +573,19 @@ function TokensSection({ senderId }: { senderId: string }) {
           </div>
         ) : (
           <>
-            {/* Header */}
-            <div className="grid grid-cols-[160px_1fr_auto] gap-4 px-4 pb-1">
+            {/* Column headers */}
+            <div className="grid grid-cols-[160px_1fr_160px_auto] gap-4 px-4 pb-1">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Key</span>
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Label</span>
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Fallback</span>
               <span className="w-16" />
             </div>
+
             <ul className="space-y-2">
               {tokens.map(token => (
                 <li
                   key={token.id}
-                  className="grid grid-cols-[160px_1fr_auto] gap-4 items-center px-4 py-3 border border-gray-200 rounded-lg group"
+                  className="grid grid-cols-[160px_1fr_160px_auto] gap-4 items-center px-4 py-3 border border-gray-200 rounded-lg group"
                 >
                   {editingId === token.id ? (
                     <>
@@ -528,6 +609,17 @@ function TokensSection({ senderId }: { senderId: string }) {
                         }}
                         className="px-3 py-1.5 border border-[#FF692E] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#FF692E]/30"
                       />
+                      <input
+                        type="text"
+                        value={editFallback}
+                        onChange={e => setEditFallback(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") handleSaveEdit(token.id);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        placeholder="No fallback"
+                        className="px-3 py-1.5 border border-[#FF692E] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#FF692E]/30"
+                      />
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleSaveEdit(token.id)}
@@ -547,9 +639,12 @@ function TokensSection({ senderId }: { senderId: string }) {
                       </div>
                     </>
                   ) : deletingId === token.id ? (
-                    <div className="col-span-3 flex items-center gap-3">
+                    <div className="col-span-4 flex items-center gap-3">
                       <span className="flex-1 text-sm text-gray-700">
-                        Delete token <code className="text-xs bg-gray-100 px-1 py-0.5 rounded font-mono">{"{{" + token.key + "}}"}</code>?
+                        Delete token{" "}
+                        <code className="text-xs bg-gray-100 px-1 py-0.5 rounded font-mono">
+                          {"{{" + token.key + "}}"}
+                        </code>?
                       </span>
                       <button
                         onClick={() => handleDelete(token.id)}
@@ -566,10 +661,21 @@ function TokensSection({ senderId }: { senderId: string }) {
                     </div>
                   ) : (
                     <>
+                      {/* Key pill */}
                       <span className="text-sm font-mono text-[#FF692E] bg-orange-50 px-2 py-1 rounded border border-orange-100 truncate">
                         {"{{" + token.key + "}}"}
                       </span>
+                      {/* Label */}
                       <span className="text-sm text-gray-800">{token.label}</span>
+                      {/* Fallback */}
+                      {token.fallback ? (
+                        <span className="text-sm text-gray-600 font-mono truncate" title={token.fallback}>
+                          {token.fallback}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-300 italic">No fallback</span>
+                      )}
+                      {/* Actions */}
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => startEdit(token)}
@@ -595,7 +701,7 @@ function TokensSection({ senderId }: { senderId: string }) {
         )}
 
         <p className="text-xs text-gray-500">
-          {tokens.length} custom token{tokens.length !== 1 ? "s" : ""} · Token keys must be unique and use lowercase letters, numbers, and underscores only.
+          {tokens.length} custom token{tokens.length !== 1 ? "s" : ""} · Keys must use lowercase letters, numbers, and underscores only.
         </p>
       </div>
     </div>
@@ -605,8 +711,8 @@ function TokensSection({ senderId }: { senderId: string }) {
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 export function Settings() {
-  const storedKey  = authStore.getApiKey();
-  const senderId   = authStore.getUser()?.id ?? "";
+  const storedKey = authStore.getApiKey();
+  const senderId  = authStore.getUser()?.id ?? "";
 
   const maskedKey = storedKey
     ? `${storedKey.slice(0, 10)}${"•".repeat(32)}`
@@ -667,13 +773,13 @@ export function Settings() {
             <h2 className="text-lg font-semibold text-gray-900">API Key</h2>
             <p className="text-sm text-gray-600 mt-1">
               Your personal API key for third-party integrations. Use it as the{" "}
-              <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded font-mono">x-api-key</code> header — no Bearer token needed.
+              <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded font-mono">x-api-key</code>{" "}
+              header — no Bearer token needed.
             </p>
           </div>
           <div className="p-6 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">API Key</label>
-
               {maskedKey ? (
                 <>
                   <div className="flex gap-2">
@@ -712,10 +818,10 @@ export function Settings() {
                 </div>
               )}
             </div>
-
             <div className="flex items-start gap-2 p-4 bg-gray-50 border border-gray-200 rounded-lg">
               <p className="text-sm text-gray-600">
-                <strong className="text-gray-900">Note:</strong> Your API key is generated once upon registration. If you lose access to it, please contact support — we cannot recover or display a lost key.
+                <strong className="text-gray-900">Note:</strong> Your API key is generated once upon registration.
+                If you lose access to it, please contact support — we cannot recover or display a lost key.
               </p>
             </div>
           </div>
