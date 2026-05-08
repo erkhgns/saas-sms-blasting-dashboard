@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Send, MessageSquare, Loader2 } from "lucide-react";
+import { Search, Send, MessageSquare, Loader2, UserPlus, X, Check } from "lucide-react";
 import { AvatarInitials, PrimaryButton } from "@/components/common";
 import { BRAND } from "@/utils";
 import { useInbox, useConversation } from "@/hooks";
-import { inboxService, messagesService } from "@/services";
+import { inboxService, messagesService, contactsService } from "@/services";
 import { authStore } from "@/utils/auth.store";
 import type { InboxThread } from "@/types";
 
@@ -12,9 +12,9 @@ import type { InboxThread } from "@/types";
 function formatTimestamp(iso: string | null | undefined): string {
   if (!iso) return "";
   const date = new Date(iso);
-  if (isNaN(date.getTime())) return "";   // guard against "Invalid Date"
-  const now  = new Date();
-  const diffMs = now.getTime() - date.getTime();
+  if (isNaN(date.getTime())) return "";
+  const now    = new Date();
+  const diffMs  = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60_000);
   const diffH   = Math.floor(diffMs / 3_600_000);
   const diffD   = Math.floor(diffMs / 86_400_000);
@@ -28,6 +28,184 @@ function formatTimestamp(iso: string | null | undefined): string {
 
 function displayName(thread: InboxThread): string {
   return thread.contact?.name ?? thread.phone;
+}
+
+// ── SaveContactModal ──────────────────────────────────────────────────────────
+
+interface SaveContactModalProps {
+  phone: string;
+  senderId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function SaveContactModal({ phone, senderId, onClose, onSaved }: SaveContactModalProps) {
+  const [name, setName]   = useState("");
+  const [email, setEmail] = useState("");
+  const [tags, setTags]   = useState("");
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus name field on open
+  useEffect(() => { nameRef.current?.focus(); }, []);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const handleSave = async () => {
+    if (!name.trim()) { setError("Name is required."); return; }
+    setError(null);
+    setSaving(true);
+    try {
+      const parsedTags = tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      await contactsService.create({
+        senderId,
+        name:  name.trim(),
+        phone,
+        email: email.trim() || undefined,
+        tags:  parsedTags.length > 0 ? parsedTags : undefined,
+      });
+
+      setSuccess(true);
+      setTimeout(() => {
+        onSaved();
+        onClose();
+      }, 800);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save contact.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputClass =
+    "w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-colors";
+
+  return (
+    /* Backdrop */
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <UserPlus className="w-5 h-5" style={{ color: BRAND.primary }} />
+            <h2 className="font-semibold text-gray-900">Save to Contacts</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="px-6 py-5 space-y-4">
+
+          {/* Phone — pre-filled, read-only */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">Phone</label>
+            <input
+              type="text"
+              value={phone}
+              readOnly
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-500 font-mono outline-none"
+            />
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
+              Name <span style={{ color: BRAND.primary }}>*</span>
+            </label>
+            <input
+              ref={nameRef}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+              placeholder="e.g. Maria Santos"
+              className={inputClass}
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
+              Email <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="e.g. maria@example.com"
+              className={inputClass}
+            />
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
+              Tags <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="e.g. VIP, New Lead"
+              className={inputClass}
+            />
+            <p className="text-xs text-gray-400 mt-1">Separate multiple tags with commas.</p>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-5 flex items-center justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || success}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-lg transition-colors disabled:opacity-70"
+            style={{ backgroundColor: success ? "#16a34a" : BRAND.primary }}
+          >
+            {success ? (
+              <><Check className="w-4 h-4" /> Saved!</>
+            ) : saving ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+            ) : (
+              <><UserPlus className="w-4 h-4" /> Save Contact</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Thread list item ─────────────────────────────────────────────────────────
@@ -76,12 +254,15 @@ function ThreadItem({ thread, selected, onClick }: ThreadItemProps) {
 // ── Main component ───────────────────────────────────────────────────────────
 
 export function Inbox() {
-  const [search, setSearch]         = useState("");
+  const senderId = authStore.getUser()?.id ?? "";
+
+  const [search, setSearch]               = useState("");
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
-  const [replyText, setReplyText]   = useState("");
-  const [sending, setSending]       = useState(false);
-  const [sendError, setSendError]   = useState<string | null>(null);
-  const messagesEndRef              = useRef<HTMLDivElement>(null);
+  const [replyText, setReplyText]         = useState("");
+  const [sending, setSending]             = useState(false);
+  const [sendError, setSendError]         = useState<string | null>(null);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const messagesEndRef                    = useRef<HTMLDivElement>(null);
 
   const { threads, meta, loading: threadsLoading, error: threadsError, refetch: refetchInbox } = useInbox();
   const { messages, loading: msgLoading, refetch: refetchConversation } = useConversation(selectedPhone);
@@ -120,7 +301,6 @@ export function Inbox() {
 
   const handleSend = async () => {
     if (!replyText.trim() || !selectedPhone) return;
-    const senderId = authStore.getUser()?.id;
     if (!senderId) return;
 
     setSending(true);
@@ -132,7 +312,6 @@ export function Inbox() {
         senderId,
       });
       setReplyText("");
-      // Refresh conversation and inbox list
       refetchConversation();
       refetchInbox();
     } catch (err) {
@@ -149,8 +328,9 @@ export function Inbox() {
     }
   };
 
-  const selectedThread = threads.find((t) => t.phone === selectedPhone) ?? null;
-  const selectedName   = selectedThread ? displayName(selectedThread) : "";
+  const selectedThread  = threads.find((t) => t.phone === selectedPhone) ?? null;
+  const selectedName    = selectedThread ? displayName(selectedThread) : "";
+  const isUnknownNumber = selectedThread && !selectedThread.contact;
 
   return (
     <div className="h-[calc(100vh-4rem)] flex">
@@ -194,18 +374,15 @@ export function Inbox() {
               <span className="text-sm">Loading…</span>
             </div>
           )}
-
           {threadsError && (
             <div className="p-4 text-sm text-red-600">{threadsError}</div>
           )}
-
           {!threadsLoading && !threadsError && filteredThreads.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <MessageSquare className="w-10 h-10 mb-2" />
               <p className="text-sm">{search ? "No matching conversations" : "No conversations yet"}</p>
             </div>
           )}
-
           {filteredThreads.map((thread) => (
             <ThreadItem
               key={thread.phone}
@@ -221,7 +398,6 @@ export function Inbox() {
       <div className="flex-1 flex flex-col bg-gray-50">
 
         {!selectedPhone ? (
-          /* Empty state */
           <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
             <MessageSquare className="w-12 h-12 mb-3" />
             <p className="text-base font-medium">Select a conversation</p>
@@ -230,7 +406,7 @@ export function Inbox() {
         ) : (
           <>
             {/* Chat header */}
-            <div className="h-16 bg-white border-b border-gray-200 flex items-center px-6 flex-shrink-0">
+            <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <AvatarInitials name={selectedName || selectedPhone} size="md" />
                 <div>
@@ -240,6 +416,18 @@ export function Inbox() {
                   )}
                 </div>
               </div>
+
+              {/* Save to Contacts — only shown for unknown numbers */}
+              {isUnknownNumber && (
+                <button
+                  onClick={() => setSaveModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-sm font-medium transition-colors hover:bg-orange-50"
+                  style={{ borderColor: BRAND.primary, color: BRAND.primary }}
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Save to Contacts
+                </button>
+              )}
             </div>
 
             {/* Messages */}
@@ -250,11 +438,9 @@ export function Inbox() {
                   <span className="text-sm">Loading messages…</span>
                 </div>
               )}
-
               {!msgLoading && messages.length === 0 && (
                 <div className="text-center text-gray-400 text-sm py-8">No messages in this conversation yet.</div>
               )}
-
               {messages.map((msg) => {
                 const isOut = msg.direction === "outbound";
                 return (
@@ -286,7 +472,6 @@ export function Inbox() {
                   </div>
                 );
               })}
-
               <div ref={messagesEndRef} />
             </div>
 
@@ -326,6 +511,19 @@ export function Inbox() {
           </>
         )}
       </div>
+
+      {/* ── Save to Contacts modal ───────────────────────────────── */}
+      {saveModalOpen && selectedPhone && (
+        <SaveContactModal
+          phone={selectedPhone}
+          senderId={senderId}
+          onClose={() => setSaveModalOpen(false)}
+          onSaved={() => {
+            refetchInbox();         // thread list updates — contact name now shows
+            refetchConversation();  // conversation header refreshes too
+          }}
+        />
+      )}
     </div>
   );
 }
