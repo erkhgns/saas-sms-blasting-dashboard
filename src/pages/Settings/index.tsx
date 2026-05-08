@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { Copy, Save, RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
+import { Copy, Save, AlertTriangle, CheckCircle } from "lucide-react";
 import { PageHeader, PrimaryButton } from "@/components/common";
-import { BRAND } from "@/utils";
 import { authStore } from "@/utils/auth.store";
-import { authService } from "@/services/auth.service";
 
 /** Copies text — returns true if successful, false if both methods fail. */
 async function copyText(text: string): Promise<boolean> {
@@ -72,28 +70,8 @@ export function Settings() {
     ? `${storedKey.slice(0, 10)}${"•".repeat(32)}`
     : null;
 
-  // Regenerate state
-  const [regenerating, setRegenerating] = useState(false);
-  const [newKey, setNewKey]             = useState<string | null>(null);
-  const [regenError, setRegenError]     = useState<string | null>(null);
-  const [copied, setCopied]             = useState(false);   // new-key panel copy
-  const [copiedMain, setCopiedMain]     = useState(false);   // main key copy
-  const [copyError, setCopyError]       = useState(false);
-
-  const handleRegenerate = async () => {
-    setRegenError(null);
-    setNewKey(null);
-    setRegenerating(true);
-    try {
-      const res = await authService.regenerateApiKey();
-      authStore.setApiKey(res.key);
-      setNewKey(res.key);
-    } catch (err) {
-      setRegenError(err instanceof Error ? err.message : "Failed to regenerate API key.");
-    } finally {
-      setRegenerating(false);
-    }
-  };
+  const [copiedMain, setCopiedMain] = useState(false);   // main key copy
+  const [copyError, setCopyError]   = useState(false);
 
   const handleCopyMain = async () => {
     const text = storedKey ?? "";
@@ -106,20 +84,6 @@ export function Settings() {
       setCopyError(true);
       setTimeout(() => setCopyError(false), 3000);
     }
-  };
-
-  const handleCopyNew = async () => {
-    if (!newKey) return;
-    const ok = await copyText(newKey);
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const handleDismissNew = () => {
-    setNewKey(null);
-    setCopied(false);
   };
 
   return (
@@ -209,62 +173,10 @@ export function Settings() {
               )}
             </div>
 
-            {/* Regenerate button */}
-            <div>
-              <button
-                onClick={handleRegenerate}
-                disabled={regenerating}
-                className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-gray-700"
-              >
-                <RefreshCw className={`w-4 h-4 ${regenerating ? "animate-spin" : ""}`} />
-                {regenerating ? "Regenerating…" : "Regenerate key"}
-              </button>
-            </div>
-
-            {/* Regenerate error */}
-            {regenError && (
-              <div className="flex items-start gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                {regenError}
-              </div>
-            )}
-
-            {/* New key reveal — shown once after regeneration */}
-            {newKey && (
-              <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg space-y-3">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                  <p className="text-sm font-semibold text-amber-900">
-                    New key generated — copy it now. The old key is already invalidated.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newKey}
-                    readOnly
-                    className="flex-1 px-3 py-2 border border-amber-300 rounded-lg bg-white font-mono text-sm focus:outline-none"
-                  />
-                  <button
-                    onClick={handleCopyNew}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-                    style={{ backgroundColor: copied ? "#16a34a" : BRAND.primary }}
-                  >
-                    {copied
-                      ? <><CheckCircle className="w-4 h-4" /><span>Copied!</span></>
-                      : <><Copy className="w-4 h-4" /><span>Copy</span></>}
-                  </button>
-                </div>
-                <button onClick={handleDismissNew} className="text-xs text-amber-700 hover:text-amber-900 underline">
-                  I've saved it — dismiss
-                </button>
-              </div>
-            )}
-
             {/* Info */}
             <div className="flex items-start gap-2 p-4 bg-gray-50 border border-gray-200 rounded-lg">
               <p className="text-sm text-gray-600">
-                <strong className="text-gray-900">Note:</strong> The full key is only visible immediately after generation or regeneration. Only the key identifier (prefix) is stored. If the key is lost, use <strong>Regenerate</strong> to get a new one — the old key will be invalidated immediately.
+                <strong className="text-gray-900">Note:</strong> Your API key is generated once upon registration. If you lose access to it, please contact support — we cannot recover or display a lost key.
               </p>
             </div>
 
