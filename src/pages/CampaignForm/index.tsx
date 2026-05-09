@@ -286,7 +286,7 @@ function SectionCard({
           {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
         </div>
       </div>
-      <div className="p-8">{children}</div>
+      <div className="p-4 sm:p-8">{children}</div>
     </section>
   );
 }
@@ -570,7 +570,7 @@ function StepContent({
       title="Message content"
       subtitle="The text recipients will see, with personalization"
     >
-      <div className="grid grid-cols-[1fr_300px] gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
         <div>
           <FieldLabel required hint={`${form.message.length}/160`}>
             Message
@@ -699,7 +699,7 @@ function StepScheduleOrPerformance({
           </div>
         )}
 
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             {
               label: "Recipients",
@@ -783,7 +783,7 @@ function StepScheduleOrPerformance({
         })}
       </div>
       {!form.sendNow && (
-        <div className="grid grid-cols-2 gap-4 mt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
           <div>
             <FieldLabel>Date</FieldLabel>
             <input
@@ -832,44 +832,46 @@ function WizardStepper({
     : STEP_LABELS;
 
   return (
-    <div className="mb-6 flex items-center gap-2 bg-white border border-gray-200 rounded-xl p-2 shadow-sm">
-      {labels.map((label, i) => {
-        const n      = i + 1;
-        const active = current === n;
-        const done   = current > n;
-        return (
-          <div key={n} className="flex items-center gap-2 flex-1">
-            <button
-              type="button"
-              onClick={() => onStepClick(n)}
-              className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                active ? "" : "hover:bg-gray-50"
-              }`}
-              style={active ? { backgroundColor: BRAND.primaryLight } : {}}
-            >
-              <div
-                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                style={{
-                  backgroundColor: active || done ? BRAND.primary : "#E5E7EB",
-                  color: active || done ? "white" : "#6B7280",
-                }}
-              >
-                {done ? <Check className="w-3.5 h-3.5" /> : n}
-              </div>
-              <span
-                className={`text-sm font-medium ${
-                  active ? "text-gray-900" : "text-gray-600"
+    <div className="mb-6 bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
+      <div className="flex items-center gap-2 p-2 min-w-max sm:min-w-0">
+        {labels.map((label, i) => {
+          const n      = i + 1;
+          const active = current === n;
+          const done   = current > n;
+          return (
+            <div key={n} className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onStepClick(n)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors min-w-[110px] sm:min-w-0 sm:flex-1 ${
+                  active ? "" : "hover:bg-gray-50"
                 }`}
+                style={active ? { backgroundColor: BRAND.primaryLight } : {}}
               >
-                {label}
-              </span>
-            </button>
-            {i < labels.length - 1 && (
-              <div className="w-6 h-px bg-gray-200 shrink-0" />
-            )}
-          </div>
-        );
-      })}
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                  style={{
+                    backgroundColor: active || done ? BRAND.primary : "#E5E7EB",
+                    color: active || done ? "white" : "#6B7280",
+                  }}
+                >
+                  {done ? <Check className="w-3.5 h-3.5" /> : n}
+                </div>
+                <span
+                  className={`text-sm font-medium whitespace-nowrap ${
+                    active ? "text-gray-900" : "text-gray-600"
+                  }`}
+                >
+                  {label}
+                </span>
+              </button>
+              {i < labels.length - 1 && (
+                <div className="w-6 h-px bg-gray-200 shrink-0" />
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1158,7 +1160,7 @@ export function CampaignForm({ mode }: CampaignFormProps) {
   // ── Loading / error states ────────────────────────────────────────────────
   if (fetchLoading) {
     return (
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-5xl mx-auto">
         <div className="h-5 w-24 bg-gray-100 rounded animate-pulse mb-4" />
         <div className="h-8 w-56 bg-gray-100 rounded animate-pulse mb-2" />
         <div className="h-4 w-80 bg-gray-100 rounded animate-pulse mb-8" />
@@ -1173,7 +1175,7 @@ export function CampaignForm({ mode }: CampaignFormProps) {
 
   if (fetchError) {
     return (
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-5xl mx-auto">
         <div className="bg-red-50 border border-red-200 rounded-xl px-6 py-4 text-red-700 text-sm">
           {fetchError}
         </div>

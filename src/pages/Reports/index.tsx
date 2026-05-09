@@ -320,7 +320,7 @@ export function Reports() {
   const selectCls = "px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white appearance-none";
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader
         title="Reports"
         subtitle="Analytics and device diagnostics for your SMS system"
@@ -336,7 +336,7 @@ export function Reports() {
       />
 
       {/* ── Summary Cards ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {summaryCards.map((card) => (
           <div key={card.label} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="text-sm text-gray-600 mb-2">{card.label}</div>
@@ -558,7 +558,7 @@ export function Reports() {
             ) : (
               <>
                 {/* Charts */}
-                <div className="grid grid-cols-[1fr_1px_1fr] divide-x divide-gray-100">
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_1px_1fr] divide-x divide-gray-100">
                   {/* Reply Rate */}
                   <div className="p-6">
                     <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
@@ -586,7 +586,7 @@ export function Reports() {
                     </ResponsiveContainer>
                   </div>
 
-                  <div className="bg-gray-100" />
+                  <div className="bg-gray-100 hidden lg:block" />
 
                   {/* Total Replies */}
                   <div className="p-6">

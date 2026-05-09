@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router";
 import {
   LayoutDashboard, Send, BarChart3, Users, MessageSquare,
-  FileText, Settings, ChevronDown, ScrollText, LogOut,
+  FileText, Settings, ChevronDown, ScrollText, LogOut, Menu,
 } from "lucide-react";
 import logoMark from "/logo-mark@2x.png";
 import { BRAND, authStore } from "@/utils";
@@ -26,6 +26,7 @@ function getInitials(name: string) {
 export function DashboardLayout() {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const user = authStore.getUser();
 
   const handleLogout = async () => {
@@ -38,9 +39,12 @@ export function DashboardLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50">
+      {/* Mobile backdrop */}
+      {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 flex flex-col transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 lg:z-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-16 flex items-center px-6 border-b border-gray-200">
           <div className="flex items-center gap-2">
             <img src={logoMark} alt="Gaby SMS" className="w-8 h-8 rounded-lg object-cover" />
@@ -54,6 +58,7 @@ export function DashboardLayout() {
               key={item.path}
               to={item.path}
               end={item.exact}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                   isActive ? "text-gray-900" : "text-gray-700 hover:bg-gray-50"
@@ -99,6 +104,9 @@ export function DashboardLayout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8">
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-gray-100 mr-2">
+            <Menu className="w-5 h-5 text-gray-600" />
+          </button>
           <div className="flex-1" />
 
           {/* User profile — click to go to Settings */}

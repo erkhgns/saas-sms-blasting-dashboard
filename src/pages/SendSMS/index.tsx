@@ -468,11 +468,11 @@ export function SendSMS() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto">
       <PageHeader title="Send SMS" subtitle="Compose and send messages to your contacts" />
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div className="p-8">
+        <div className="p-4 sm:p-8">
 
           {/* ── Message ───────────────────────────────────────────────── */}
           <div className="mb-8">
@@ -647,7 +647,7 @@ export function SendSMS() {
 
             {/* ── Manual Entry ── */}
             {recipientType === "manual" && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-sm font-medium text-gray-700">Phone Numbers</span>
@@ -834,7 +834,7 @@ export function SendSMS() {
               </div>
               {!sendNow && (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm text-gray-700 mb-2">Date</label>
                       <div className="relative">

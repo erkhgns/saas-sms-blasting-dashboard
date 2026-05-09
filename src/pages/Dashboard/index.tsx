@@ -76,14 +76,14 @@ export function Dashboard() {
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
         <p className="text-gray-600 mt-1">Welcome back! Here's what's happening today.</p>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-5 gap-6 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {statCards.map((kpi) => (
           <div key={kpi.label} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="mb-4">
@@ -130,7 +130,7 @@ export function Dashboard() {
       </div>
 
       {/* Recent Activity */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Campaigns */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Campaigns</h2>

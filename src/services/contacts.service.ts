@@ -12,8 +12,10 @@ import type {
   OptOutPayload,
 } from "@/types";
 
+// These are resolved from the shared api.ts module so BASE_URL is always in sync
+// with VITE_API_BASE_URL (or the "/api" fallback for local dev).
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
-const API_KEY = import.meta.env.VITE_API_KEY ?? "";
+const ENV_API_KEY = import.meta.env.VITE_API_KEY ?? "";
 
 export const contactsService = {
   getAll: (params: {
@@ -54,14 +56,20 @@ export const contactsService = {
   optOut: (id: string, payload: OptOutPayload) =>
     api.patch<Contact>(`/contacts/${id}/opt-out`, payload),
 
+  /**
+   * CSV import uses a raw fetch because the body is multipart/form-data
+   * (can't use api.post which sets Content-Type: application/json).
+   * We still use the same BASE_URL and auth headers as the shared api.ts client.
+   */
   importCsv: async (file: File, senderId: string): Promise<ImportContactsResponse> => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("senderId", senderId);
 
-    const headers: Record<string, string> = {
-      "x-api-key": API_KEY,
-    };
+    // Mirror the header logic from api.ts: API key first, then Bearer token
+    const headers: Record<string, string> = {};
+    const apiKey = ENV_API_KEY || authStore.getApiKey() || "";
+    if (apiKey) headers["x-api-key"] = apiKey;
 
     const accessToken = authStore.getAccessToken();
     if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
