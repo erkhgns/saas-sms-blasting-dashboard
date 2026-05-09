@@ -13,7 +13,6 @@ export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,19 +99,15 @@ export function Login() {
               </div>
             </div>
 
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 border-gray-300 rounded"
-                  style={{ accentColor: BRAND.primary }}
-                />
-                <span className="text-sm text-gray-700">Remember me</span>
-              </label>
-              <a href="#" className="text-sm font-medium hover:underline" style={{ color: BRAND.primary }}>
+            {/* Forgot Password */}
+            <div className="flex justify-end">
+              <a
+                href="https://m.me/GABY.IO"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium hover:underline"
+                style={{ color: BRAND.primary }}
+              >
                 Forgot password?
               </a>
             </div>
@@ -135,8 +130,14 @@ export function Login() {
         {/* Sign Up Link */}
         <p className="text-center text-sm text-gray-600 mt-6">
           Don't have an account?{" "}
-          <a href="#" className="font-semibold hover:underline" style={{ color: BRAND.primary }}>
-            Sign up for free
+          <a
+            href="https://m.me/GABY.IO"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold hover:underline"
+            style={{ color: BRAND.primary }}
+          >
+            Sign up here
           </a>
         </p>
       </div>

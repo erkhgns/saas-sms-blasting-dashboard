@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  Copy, Save, AlertTriangle, CheckCircle,
+  Copy, AlertTriangle, CheckCircle,
   Tag as TagIcon, Plus, Pencil, Trash2, X, Check,
-  Key, Hash,
+  Key, Hash, Lock, Eye, EyeOff,
 } from "lucide-react";
-import { PageHeader, PrimaryButton } from "@/components/common";
+import { PageHeader } from "@/components/common";
 import { authStore } from "@/utils/auth.store";
+import { authService } from "@/services/auth.service";
 import { tagsService } from "@/services/tags.service";
 import { tokensService } from "@/services/tokens.service";
 import type { Tag, ApiToken } from "@/types";
@@ -50,23 +51,6 @@ function toInputHex(hex: string | null | undefined): string {
   return hex;
 }
 
-// ─── Toggle ──────────────────────────────────────────────────────────────────
-
-function Toggle({ defaultChecked }: { defaultChecked?: boolean }) {
-  return (
-    <label className="relative inline-flex items-center cursor-pointer">
-      <input type="checkbox" defaultChecked={defaultChecked} className="sr-only peer" />
-      <div
-        className="w-11 h-6 bg-gray-200 rounded-full peer
-          after:content-[''] after:absolute after:top-[2px] after:left-[2px]
-          after:bg-white after:border-gray-300 after:border after:rounded-full
-          after:h-5 after:w-5 after:transition-all
-          peer-checked:after:translate-x-full peer-checked:after:border-white
-          peer-checked:bg-[#FF692E]"
-      />
-    </label>
-  );
-}
 
 /** Inline color-swatch button that opens the native color picker on click. */
 function ColorPicker({
@@ -98,12 +82,6 @@ function ColorPicker({
     </label>
   );
 }
-
-const accountToggles = [
-  { label: "Email Notifications",    desc: "Receive email alerts for campaign completions and failures" },
-  { label: "Auto-reply Detection",   desc: "Automatically detect and categorize auto-replies" },
-  { label: "STOP Request Handling",  desc: "Automatically unsubscribe contacts who send STOP" },
-];
 
 // ─── Tags Management Section ──────────────────────────────────────────────────
 
@@ -708,6 +686,172 @@ function TokensSection({ senderId }: { senderId: string }) {
   );
 }
 
+// ─── Change Password ─────────────────────────────────────────────────────────
+
+function ChangePasswordSection() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword,     setNewPassword]     = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent,     setShowCurrent]     = useState(false);
+  const [showNew,         setShowNew]         = useState(false);
+  const [showConfirm,     setShowConfirm]     = useState(false);
+  const [saving,          setSaving]          = useState(false);
+  const [success,         setSuccess]         = useState(false);
+  const [error,           setError]           = useState<string | null>(null);
+
+  const confirmMismatch = confirmPassword.length > 0 && confirmPassword !== newPassword;
+  const newTooShort     = newPassword.length > 0 && newPassword.length < 8;
+  const canSubmit       = currentPassword.length > 0 && newPassword.length >= 8 && newPassword === confirmPassword;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setSaving(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      await authService.changePassword(currentPassword, newPassword);
+      setSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => setSuccess(false), 4000);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("401")) {
+        setError("Current password is incorrect.");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to change password. Please try again.");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls = (hasError: boolean) =>
+    `flex-1 px-4 py-2.5 border rounded-lg text-sm outline-none transition-colors ${
+      hasError
+        ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100"
+        : "border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+    }`;
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+      <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+          <Lock className="w-4 h-4 text-gray-600" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Update your login password</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {/* Current Password */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+          <div className="flex gap-2">
+            <input
+              type={showCurrent ? "text" : "password"}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Enter your current password"
+              className={inputCls(false)}
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowCurrent((v) => !v)}
+              className="px-3 border border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"
+              tabIndex={-1}
+            >
+              {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* New Password */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+          <div className="flex gap-2">
+            <input
+              type={showNew ? "text" : "password"}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="At least 8 characters"
+              className={inputCls(newTooShort)}
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowNew((v) => !v)}
+              className="px-3 border border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"
+              tabIndex={-1}
+            >
+              {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          {newTooShort && (
+            <p className="text-xs text-red-600 mt-1.5">Password must be at least 8 characters.</p>
+          )}
+        </div>
+
+        {/* Confirm New Password */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+          <div className="flex gap-2">
+            <input
+              type={showConfirm ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Re-enter your new password"
+              className={inputCls(confirmMismatch)}
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirm((v) => !v)}
+              className="px-3 border border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"
+              tabIndex={-1}
+            >
+              {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          {confirmMismatch && (
+            <p className="text-xs text-red-600 mt-1.5">Passwords do not match.</p>
+          )}
+        </div>
+
+        {/* Feedback */}
+        {success && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+            <CheckCircle className="w-4 h-4 shrink-0" />
+            Password changed successfully.
+          </div>
+        )}
+        {error && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {error}
+          </div>
+        )}
+
+        {/* Submit */}
+        <div className="pt-1">
+          <button
+            type="submit"
+            disabled={!canSubmit || saving}
+            className="px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ backgroundColor: "#FF692E" }}
+          >
+            {saving ? "Updating…" : "Update Password"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 export function Settings() {
@@ -744,28 +888,34 @@ export function Settings() {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Profile Information</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Your account details as registered.</p>
           </div>
           <div className="p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-                <input type="text" defaultValue="John" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg" style={{ outline: "none" }} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                <input type="text" defaultValue="Smith" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg" style={{ outline: "none" }} />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+              <input
+                type="text"
+                value={authStore.getUser()?.name ?? ""}
+                readOnly
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 cursor-default select-none"
+                style={{ outline: "none" }}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-              <input type="email" defaultValue="john.smith@company.com" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg" style={{ outline: "none" }} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Company Name</label>
-              <input type="text" defaultValue="Acme Corporation" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg" style={{ outline: "none" }} />
+              <input
+                type="email"
+                value={authStore.getUser()?.email ?? ""}
+                readOnly
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 cursor-default select-none"
+                style={{ outline: "none" }}
+              />
             </div>
           </div>
         </div>
+
+        {/* ── Change Password ─────────────────────────────────────────────── */}
+        <ChangePasswordSection />
 
         {/* ── API Key ─────────────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -827,61 +977,12 @@ export function Settings() {
           </div>
         </div>
 
-        {/* ── Sender ID Configuration ─────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Sender ID Configuration</h2>
-            <p className="text-sm text-gray-600 mt-1">Configure your default sender ID for outbound messages</p>
-          </div>
-          <div className="p-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Default Sender ID</label>
-            <input
-              type="text"
-              defaultValue="GabySMS"
-              placeholder="e.g., GabySMS or +1234567890"
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
-              style={{ outline: "none" }}
-            />
-            <p className="text-sm text-gray-500 mt-2">
-              Can be alphanumeric (up to 11 characters) or a phone number.
-            </p>
-          </div>
-        </div>
-
         {/* ── Tags Management ──────────────────────────────────────────────── */}
         {senderId && <TagsSection senderId={senderId} />}
 
         {/* ── Token Management ─────────────────────────────────────────────── */}
         {senderId && <TokensSection senderId={senderId} />}
 
-        {/* ── Account Settings ─────────────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Account Settings</h2>
-          </div>
-          <div className="p-6 space-y-4">
-            {accountToggles.map((item, i) => (
-              <div
-                key={item.label}
-                className={`flex items-center justify-between ${i < accountToggles.length - 1 ? "pb-4 border-b border-gray-200" : ""}`}
-              >
-                <div>
-                  <div className="font-medium text-gray-900">{item.label}</div>
-                  <div className="text-sm text-gray-600">{item.desc}</div>
-                </div>
-                <Toggle defaultChecked />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Save Button ──────────────────────────────────────────────────── */}
-        <div className="flex justify-end">
-          <PrimaryButton className="px-6 py-3">
-            <Save className="w-5 h-5" />
-            Save Changes
-          </PrimaryButton>
-        </div>
 
       </div>
     </div>

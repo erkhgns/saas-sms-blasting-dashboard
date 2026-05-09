@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router";
 import { Check, X, Users, AlertTriangle } from "lucide-react";
 import {
   BRAND,
-  CONTACT_TAGS,
   CAMPAIGN_STATUS_COLORS,
   formatNumber,
   cleanPhoneNumbers,
@@ -11,7 +10,7 @@ import {
 import { campaignsService } from "@/services";
 import { authStore } from "@/utils/auth.store";
 import { ApiError } from "@/services/api";
-import { useSegments, useContactGroups } from "@/hooks";
+import { useTokens, useTags } from "@/hooks";
 import {
   emptyCampaignForm,
   CAMPAIGN_STATUS_LABELS,
@@ -22,6 +21,8 @@ import type {
   CampaignPriority,
   Campaign,
   CreateCampaignPayload,
+  ApiToken,
+  Tag,
 } from "@/types";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -32,25 +33,12 @@ export interface CampaignFormProps {
 
 // ── Personalization tokens ────────────────────────────────────────────────────
 
-const TOKENS = [
-  { key: "first_name",       label: "First name",       example: "Sarah" },
-  { key: "last_name",        label: "Last name",        example: "Johnson" },
-  { key: "full_name",        label: "Full name",        example: "Sarah Johnson" },
-  { key: "phone",            label: "Phone",            example: "+63 917 234 5678" },
-  { key: "company",          label: "Company",          example: "Acme Corp" },
-  { key: "city",             label: "City",             example: "Manila" },
-  { key: "discount_code",    label: "Discount code",    example: "SAVE20" },
-  { key: "appointment_date", label: "Appointment date", example: "May 8" },
-  { key: "appointment_time", label: "Appointment time", example: "3:00 PM" },
-  { key: "order_id",         label: "Order ID",         example: "ORD-48201" },
-  { key: "balance_due",      label: "Balance due",      example: "₱1,299.00" },
-  { key: "due_date",         label: "Due date",         example: "May 12" },
-];
-
-function renderTokens(text: string): string {
+/** Replaces {{key}} with the token's fallback (or a bracketed label as last resort) */
+function renderTokens(text: string, tokens: ApiToken[]): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_, k) => {
-    const t = TOKENS.find((x) => x.key === k);
-    return t ? t.example : `{{${k}}}`;
+    const t = tokens.find((x) => x.key === k);
+    if (!t) return `{{${k}}}`;
+    return t.fallback ?? `[${t.label}]`;
   });
 }
 
@@ -59,12 +47,14 @@ function renderTokens(text: string): string {
 function TokenPicker({
   onPick,
   anchor = "down",
+  tokens,
 }: {
   onPick: (t: { key: string }) => void;
   anchor?: "up" | "down";
+  tokens: ApiToken[];
 }) {
   const [q, setQ] = useState("");
-  const filtered = TOKENS.filter(
+  const filtered = tokens.filter(
     (t) =>
       t.label.toLowerCase().includes(q.toLowerCase()) ||
       t.key.toLowerCase().includes(q.toLowerCase())
@@ -85,22 +75,30 @@ function TokenPicker({
         />
       </div>
       <div className="max-h-64 overflow-auto py-1">
-        {filtered.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onMouseDown={(e) => { e.preventDefault(); onPick(t); }}
-            className="w-full text-left px-3 py-2 hover:bg-orange-50 flex items-center justify-between gap-3"
-          >
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-gray-900 truncate">{t.label}</div>
-              <div className="text-xs text-gray-500 font-mono truncate">{`{{${t.key}}}`}</div>
-            </div>
-            <div className="text-xs text-gray-400 truncate">e.g. {t.example}</div>
-          </button>
-        ))}
-        {filtered.length === 0 && (
+        {tokens.length === 0 ? (
+          <div className="px-3 py-6 text-center text-sm text-gray-500">
+            No tokens defined.{" "}
+            <span className="text-gray-400">Add in Settings → Custom Tokens.</span>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="px-3 py-6 text-center text-sm text-gray-500">No tokens match.</div>
+        ) : (
+          filtered.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); onPick(t); }}
+              className="w-full text-left px-3 py-2 hover:bg-orange-50 flex items-center justify-between gap-3"
+            >
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-gray-900 truncate">{t.label}</div>
+                <div className="text-xs text-gray-500 font-mono truncate">{`{{${t.key}}}`}</div>
+              </div>
+              {t.fallback && (
+                <div className="text-xs text-gray-400 truncate shrink-0">e.g. {t.fallback}</div>
+              )}
+            </button>
+          ))
         )}
       </div>
     </div>
@@ -111,13 +109,14 @@ function TokenPicker({
 
 function PhonePreview({
   message,
-  senderName = "GabySMS",
+  tokens,
 }: {
   message: string;
-  senderName?: string;
+  tokens: ApiToken[];
 }) {
   const rendered = renderTokens(
-    message || "Your message preview will appear here…"
+    message || "Your message preview will appear here…",
+    tokens
   );
   const now  = new Date();
   const time = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -140,11 +139,9 @@ function PhonePreview({
             className="w-12 h-12 rounded-full flex items-center justify-center mb-1"
             style={{ backgroundColor: BRAND.primary }}
           >
-            <span className="text-white font-semibold text-sm">
-              {(senderName || "SM").slice(0, 2).toUpperCase()}
-            </span>
+            <span className="text-white font-semibold text-sm">SM</span>
           </div>
-          <div className="text-xs font-medium text-gray-900">{senderName}</div>
+          <div className="text-xs font-medium text-gray-900">Your Number</div>
           <div className="text-[10px] text-gray-500">text message</div>
         </div>
         <div className="px-3 py-4">
@@ -166,10 +163,12 @@ function MessageEditor({
   value,
   onChange,
   readOnly,
+  tokens,
 }: {
   value: string;
   onChange: (v: string) => void;
   readOnly: boolean;
+  tokens: ApiToken[];
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -233,7 +232,7 @@ function MessageEditor({
           </svg>
           Insert token
         </button>
-        {pickerOpen && <TokenPicker onPick={insertToken} anchor="up" />}
+        {pickerOpen && <TokenPicker onPick={insertToken} anchor="up" tokens={tokens} />}
       </div>
       <div className="flex items-center justify-between mt-2 text-sm">
         <div className="text-gray-600">
@@ -320,195 +319,60 @@ function ExclusionsSection({
   form,
   onChange,
   readOnly,
-  groups,
 }: {
   form: CampaignFormState;
   onChange: <K extends keyof CampaignFormState>(key: K, value: CampaignFormState[K]) => void;
   readOnly: boolean;
-  groups: Array<{ id: string; name: string; count: number }>;
 }) {
-  const [tab, setTab] = useState<"groups" | "tags" | "numbers">("tags");
-  const cleanedExcluded  = cleanPhoneNumbers(form.excludeNumbers);
-  const totalExclusionCount =
-    (form.excludeGroups?.length || 0) +
-    (form.excludeTags?.length || 0) +
-    cleanedExcluded.length;
-
-  const tabBtn = (key: "groups" | "tags" | "numbers", label: string, count: number) => {
-    const active = tab === key;
-    return (
-      <button
-        key={key}
-        type="button"
-        onClick={() => setTab(key)}
-        className={`flex-1 px-4 py-2.5 rounded-lg border-2 font-medium text-sm transition-colors flex items-center justify-center gap-2 ${
-          active ? "" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-        }`}
-        style={
-          active
-            ? { borderColor: "#EF4444", backgroundColor: "#FEF2F2", color: "#991B1B" }
-            : {}
-        }
-      >
-        {label}
-        {count > 0 && (
-          <span
-            className="px-1.5 py-0.5 rounded text-xs font-semibold"
-            style={
-              active
-                ? { backgroundColor: "#FEE2E2", color: "#991B1B" }
-                : { backgroundColor: "#F3F4F6", color: "#6B7280" }
-            }
-          >
-            {count}
-          </span>
-        )}
-      </button>
-    );
-  };
-
-  const toggleExcludeGroup = (gid: string) => {
-    const next = form.excludeGroups.includes(gid)
-      ? form.excludeGroups.filter((g) => g !== gid)
-      : [...form.excludeGroups, gid];
-    onChange("excludeGroups", next);
-  };
-
-  const toggleExcludeTag = (tag: string) => {
-    const alreadyExcluded = form.excludeTags.includes(tag);
-    onChange(
-      "excludeTags",
-      alreadyExcluded
-        ? form.excludeTags.filter((t) => t !== tag)
-        : [...form.excludeTags, tag]
-    );
-    // Remove from includes if being added to exclusions
-    if (!alreadyExcluded) {
-      onChange("includeTags", form.includeTags.filter((t) => t !== tag));
-    }
-  };
+  const cleanedExcluded = cleanPhoneNumbers(form.excludeNumbers);
 
   return (
     <div className="rounded-xl border-2 border-dashed border-red-200 bg-red-50/30 p-5">
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-2">
             <X className="w-4 h-4 text-red-600" />
             <span className="text-sm font-semibold text-gray-900">
-              Exclude from this audience
+              Exclude phone numbers
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Recipients matching any of these will be removed before sending.
+            These numbers will be skipped before sending, even if they match the audience.
           </p>
         </div>
-        {totalExclusionCount > 0 && (
+        {cleanedExcluded.length > 0 && (
           <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
-            {totalExclusionCount} exclusion{totalExclusionCount !== 1 ? "s" : ""}
+            {cleanedExcluded.length} number{cleanedExcluded.length !== 1 ? "s" : ""}
           </span>
         )}
       </div>
 
-      <div className="flex gap-2 mb-4">
-        {tabBtn("groups", "Groups", form.excludeGroups.length)}
-        {tabBtn("tags", "Tags", form.excludeTags.length)}
-        {tabBtn("numbers", "Phone numbers", cleanedExcluded.length)}
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-medium text-gray-700">Phone numbers to exclude</span>
+        {form.excludeNumbers.trim() && (
+          <span className="text-xs text-gray-500">
+            {cleanedExcluded.length} number{cleanedExcluded.length !== 1 ? "s" : ""} cleaned
+          </span>
+        )}
       </div>
-
-      {tab === "groups" && (
-        <div className="grid grid-cols-2 gap-2">
-          {groups.filter((g) => g.id !== "all").map((g) => {
-            const active = form.excludeGroups.includes(g.id);
-            return (
-              <button
-                key={g.id}
-                type="button"
-                disabled={readOnly}
-                onClick={() => toggleExcludeGroup(g.id)}
-                className={`text-left px-4 py-3 rounded-lg border-2 transition-colors flex items-center justify-between ${
-                  active ? "" : "border-gray-200 bg-white hover:border-gray-300"
-                }`}
-                style={
-                  active ? { borderColor: "#EF4444", backgroundColor: "#FEF2F2" } : {}
-                }
-              >
-                <div>
-                  <div className="text-sm font-medium text-gray-900">{g.name}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    {formatNumber(g.count)} contacts
-                  </div>
-                </div>
-                {active && <X className="w-4 h-4 text-red-600" />}
-              </button>
-            );
-          })}
-          {groups.filter((g) => g.id !== "all").length === 0 && (
-            <p className="text-sm text-gray-500 col-span-2 py-4 text-center">
-              No tag groups yet.
-            </p>
-          )}
-        </div>
-      )}
-
-      {tab === "tags" && (
-        <div className="flex flex-wrap gap-2">
-          {CONTACT_TAGS.map((tag) => {
-            const active = form.excludeTags.includes(tag);
-            return (
-              <button
-                key={tag}
-                type="button"
-                disabled={readOnly}
-                onClick={() => toggleExcludeTag(tag)}
-                className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors border inline-flex items-center gap-1.5"
-                style={
-                  active
-                    ? { backgroundColor: "#FEE2E2", color: "#991B1B", borderColor: "#FCA5A5" }
-                    : { backgroundColor: "white", color: "#374151", borderColor: "#E5E7EB" }
-                }
-              >
-                {active && <span>✕</span>}
-                {tag}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {tab === "numbers" && (
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-medium text-gray-700">
-              Phone numbers to exclude
-            </span>
-            {form.excludeNumbers.trim() && (
-              <span className="text-xs text-gray-500">
-                {cleanedExcluded.length} number
-                {cleanedExcluded.length !== 1 ? "s" : ""} cleaned
-              </span>
-            )}
-          </div>
-          <textarea
-            value={form.excludeNumbers}
-            readOnly={readOnly}
-            onChange={(e) => onChange("excludeNumbers", e.target.value)}
-            placeholder={"Numbers to skip from the campaign\n09171234567\n+639281234567\n9171234567,"}
-            className={`w-full h-32 px-4 py-3 border border-gray-300 rounded-lg resize-none font-mono text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 ${
-              readOnly ? "bg-gray-50" : "bg-white"
-            }`}
-          />
-          <p className="text-xs text-gray-500 mt-1.5">
-            Commas, line breaks, duplicates &amp; formatting fixed automatically.
-          </p>
-        </div>
-      )}
+      <textarea
+        value={form.excludeNumbers}
+        readOnly={readOnly}
+        onChange={(e) => onChange("excludeNumbers", e.target.value)}
+        placeholder={"Numbers to skip from this campaign\n09171234567\n+639281234567\n9171234567,"}
+        className={`w-full h-32 px-4 py-3 border border-gray-300 rounded-lg resize-none font-mono text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 ${
+          readOnly ? "bg-gray-50" : "bg-white"
+        }`}
+      />
+      <p className="text-xs text-gray-500 mt-1.5">
+        Commas, line breaks, duplicates &amp; formatting fixed automatically.
+      </p>
     </div>
   );
 }
 
 // ── Step components ───────────────────────────────────────────────────────────
 
-const SENDER_NAMES = ["GabySMS", "AcmeCorp", "SHOP-PH"];
 const inputClass =
   "w-full px-4 py-2.5 border border-gray-300 rounded-lg outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 text-sm";
 
@@ -523,35 +387,20 @@ function StepDetails({
   readonly: boolean;
 }) {
   return (
-    <SectionCard step={1} title="Campaign details" subtitle="Internal name and sender ID">
-      <div className="grid grid-cols-2 gap-6">
-        <div>
-          <FieldLabel required>Campaign name</FieldLabel>
-          <input
-            type="text"
-            value={form.name}
-            readOnly={readonly}
-            onChange={(e) => onChange("name", e.target.value)}
-            placeholder="e.g. Spring Flash Sale"
-            className={`${inputClass} ${readonly ? "bg-gray-50" : ""}`}
-          />
-          <p className="text-xs text-gray-500 mt-1.5">
-            Internal label — recipients won't see this.
-          </p>
-        </div>
-        <div>
-          <FieldLabel hint="Verified senders only">Sender name</FieldLabel>
-          <select
-            value={form.senderName}
-            disabled={readonly}
-            onChange={(e) => onChange("senderName", e.target.value)}
-            className={`${inputClass} bg-white ${readonly ? "bg-gray-50" : ""}`}
-          >
-            {SENDER_NAMES.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </div>
+    <SectionCard step={1} title="Campaign details" subtitle="Give your campaign an internal name">
+      <div>
+        <FieldLabel required>Campaign name</FieldLabel>
+        <input
+          type="text"
+          value={form.name}
+          readOnly={readonly}
+          onChange={(e) => onChange("name", e.target.value)}
+          placeholder="e.g. Spring Flash Sale"
+          className={`${inputClass} ${readonly ? "bg-gray-50" : ""}`}
+        />
+        <p className="text-xs text-gray-500 mt-1.5">
+          Internal label — recipients won't see this.
+        </p>
       </div>
     </SectionCard>
   );
@@ -563,14 +412,14 @@ function StepAudience({
   onChange,
   readonly,
   estimated,
+  apiTags,
 }: {
   form: CampaignFormState;
   onChange: <K extends keyof CampaignFormState>(key: K, value: CampaignFormState[K]) => void;
   readonly: boolean;
   estimated: number;
+  apiTags: Tag[];
 }) {
-  const { segments } = useSegments();
-  const { groups }   = useContactGroups();
   const segCount = Math.max(1, Math.ceil(form.message.length / 160));
 
   const toggleIncludeTag = (tag: string) => {
@@ -590,113 +439,73 @@ function StepAudience({
       subtitle="Who should receive this campaign?"
     >
       <div className="space-y-6">
-        {/* Contact group card buttons — sourced from real API */}
-        <div>
-          <FieldLabel required>Contact group</FieldLabel>
-          <div className="grid grid-cols-4 gap-3">
-            {groups.map((g) => {
-              const active = form.group === g.id && !form.segmentId;
-              return (
-                <button
-                  key={g.id}
-                  type="button"
-                  disabled={readonly}
-                  onClick={() => { onChange("group", g.id); onChange("segmentId", null); }}
-                  className={`text-left px-4 py-3 rounded-lg border-2 transition-colors ${
-                    active ? "" : "border-gray-200 hover:border-gray-300 bg-white"
-                  }`}
-                  style={
-                    active
-                      ? { borderColor: BRAND.primary, backgroundColor: BRAND.primaryLight }
-                      : {}
-                  }
-                >
-                  <div className="text-sm font-medium text-gray-900 truncate">
-                    {g.name}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    {formatNumber(g.count)} contacts
-                  </div>
-                </button>
-              );
-            })}
+        {/* Audience base — always All Contacts */}
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 bg-gray-50">
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            style={{ backgroundColor: BRAND.primaryLight }}
+          >
+            <Users className="w-4 h-4" style={{ color: BRAND.primary }} />
           </div>
-        </div>
-
-        {/* Saved segments */}
-        {segments.length > 0 && (
-          <div>
-            <FieldLabel hint="Pre-built audience rules">
-              …or use a saved segment
-            </FieldLabel>
-            <div className="grid grid-cols-2 gap-3">
-              {segments.map((s) => {
-                const active = form.segmentId === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    disabled={readonly}
-                    onClick={() => onChange("segmentId", active ? null : s.id)}
-                    className={`text-left px-4 py-3 rounded-lg border-2 transition-colors flex items-center justify-between ${
-                      active ? "" : "border-gray-200 hover:border-gray-300 bg-white"
-                    }`}
-                    style={
-                      active
-                        ? { borderColor: BRAND.primary, backgroundColor: BRAND.primaryLight }
-                        : {}
-                    }
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">
-                        {s.name}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {formatNumber(s.count)} contacts
-                      </div>
-                    </div>
-                    <Check
-                      className="w-4 h-4 shrink-0"
-                      style={{ color: active ? BRAND.primary : "transparent" }}
-                    />
-                  </button>
-                );
-              })}
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-gray-900">All Contacts</div>
+            <div className="text-xs text-gray-500 mt-0.5">
+              Your entire contact list is the base audience. Use tags below to narrow it down.
             </div>
           </div>
-        )}
+          <span
+            className="text-xs font-medium px-2.5 py-1 rounded-full border shrink-0"
+            style={{ backgroundColor: BRAND.primaryLight, color: BRAND.primary, borderColor: BRAND.primary + "40" }}
+          >
+            Selected
+          </span>
+        </div>
 
         {/* Include tags */}
         <div>
           <FieldLabel hint="Narrow audience to contacts with these tags">
             Include tags
           </FieldLabel>
-          <div className="flex flex-wrap gap-2">
-            {CONTACT_TAGS.map((tag) => {
-              const active = form.includeTags.includes(tag);
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  disabled={readonly}
-                  onClick={() => toggleIncludeTag(tag)}
-                  className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors border inline-flex items-center gap-1.5"
-                  style={
-                    active
-                      ? {
-                          backgroundColor: BRAND.primary,
-                          color: "white",
-                          borderColor: BRAND.primary,
-                        }
-                      : { backgroundColor: "#F3F4F6", color: "#374151", borderColor: "#E5E7EB" }
-                  }
-                >
-                  {active && <Check className="w-3 h-3" />}
-                  {tag}
-                </button>
-              );
-            })}
-          </div>
+          {apiTags.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              No tags defined yet. Add tags in{" "}
+              <span className="font-medium">Settings → Tags</span>.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {apiTags.map((tag) => {
+                const active = form.includeTags.includes(tag.name);
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    disabled={readonly}
+                    onClick={() => toggleIncludeTag(tag.name)}
+                    className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors border inline-flex items-center gap-1.5"
+                    style={
+                      active
+                        ? {
+                            backgroundColor: BRAND.primary,
+                            color: "white",
+                            borderColor: BRAND.primary,
+                          }
+                        : { backgroundColor: "#F3F4F6", color: "#374151", borderColor: "#E5E7EB" }
+                    }
+                  >
+                    {active ? (
+                      <Check className="w-3 h-3 shrink-0" />
+                    ) : (
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0 border border-black/10"
+                        style={{ backgroundColor: tag.color ?? "#d1d5db" }}
+                      />
+                    )}
+                    {tag.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {form.includeTags.length === 0 && (
             <p className="text-xs text-gray-500 mt-2">
               No tags selected — all contacts in the group will be included.
@@ -709,7 +518,6 @@ function StepAudience({
           form={form}
           onChange={onChange}
           readOnly={readonly}
-          groups={groups}
         />
 
         {/* Reach summary */}
@@ -743,10 +551,12 @@ function StepContent({
   form,
   onChange,
   readonly,
+  tokens,
 }: {
   form: CampaignFormState;
   onChange: <K extends keyof CampaignFormState>(key: K, value: CampaignFormState[K]) => void;
   readonly: boolean;
+  tokens: ApiToken[];
 }) {
   type PriorityLabel = "Normal" | "High" | "Urgent";
   const priorityLabels: PriorityLabel[] = ["Normal", "High", "Urgent"];
@@ -769,27 +579,31 @@ function StepContent({
             value={form.message}
             onChange={(v) => onChange("message", v)}
             readOnly={readonly}
+            tokens={tokens}
           />
 
           {/* Quick insert chips */}
-          <div className="mt-4">
-            <div className="text-xs font-medium text-gray-700 mb-2">
-              Quick insert:
+          {tokens.length > 0 && (
+            <div className="mt-4">
+              <div className="text-xs font-medium text-gray-700 mb-2">
+                Quick insert:
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {tokens.slice(0, 6).map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    disabled={readonly}
+                    onClick={() => onChange("message", form.message + `{{${t.key}}}`)}
+                    className="px-2 py-1 text-xs font-mono bg-gray-100 hover:bg-orange-100 text-gray-700 rounded transition-colors disabled:opacity-50"
+                    title={t.fallback ? `Fallback: "${t.fallback}"` : undefined}
+                  >
+                    {`{{${t.key}}}`}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {TOKENS.slice(0, 6).map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  disabled={readonly}
-                  onClick={() => onChange("message", form.message + `{{${t.key}}}`)}
-                  className="px-2 py-1 text-xs font-mono bg-gray-100 hover:bg-orange-100 text-gray-700 rounded transition-colors disabled:opacity-50"
-                >
-                  {`{{${t.key}}}`}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Priority */}
           <div className="mt-6">
@@ -828,7 +642,7 @@ function StepContent({
         {/* Live preview */}
         <div>
           <div className="text-sm font-medium text-gray-900 mb-3">Live preview</div>
-          <PhonePreview message={form.message} senderName={form.senderName} />
+          <PhonePreview message={form.message} tokens={tokens} />
           <div className="text-xs text-gray-500 text-center mt-3 leading-relaxed">
             Tokens shown with sample values.
             <br />
@@ -1081,7 +895,7 @@ function seedForm(c: Campaign): CampaignFormState {
     name:           c.name,
     status:         c.status,
     message:        c.message ?? "",
-    senderName:     c.senderName ?? "GabySMS",
+    senderName:     "",
     priority:       c.priority ?? 0,
     group:          c.recipientGroup ?? "all",
     includeTags:    c.includeTags ?? [],
@@ -1118,14 +932,12 @@ function buildPayload(
   return {
     senderId,
     name:           form.name.trim(),
-    senderName:     form.senderName || "GabySMS",
+    senderName:     "",
     message:        form.message.trim(),
     priority:       form.priority,
-    recipientGroup: form.segmentId ? undefined : form.group,
-    segmentId:      form.segmentId,
+    recipientGroup: "all",
+    segmentId:      null,
     includeTags:    form.includeTags,
-    excludeTags:    form.excludeTags,
-    excludeGroups:  form.excludeGroups,
     excludeNumbers: cleanPhoneNumbers(form.excludeNumbers),
     scheduledAt,
   };
@@ -1142,6 +954,9 @@ export function CampaignForm({ mode }: CampaignFormProps) {
 
   // Read once — guaranteed non-empty because ProtectedRoute ensures login
   const senderId = authStore.getUser()?.id ?? "";
+
+  const { tokens } = useTokens();
+  const { tags: apiTags } = useTags();
 
   const [step, setStep]           = useState(1);
   const [form, setForm]           = useState<CampaignFormState>(emptyCampaignForm);
@@ -1203,12 +1018,9 @@ export function CampaignForm({ mode }: CampaignFormProps) {
         const excluded = cleanPhoneNumbers(form.excludeNumbers);
         const result = await campaignsService.reach({
           senderId,
-          recipientGroup: form.segmentId ? undefined : form.group,
-          segmentId:      form.segmentId ?? undefined,
-          includeTags:    form.includeTags.length   ? form.includeTags   : undefined,
-          excludeTags:    form.excludeTags.length   ? form.excludeTags   : undefined,
-          excludeGroups:  form.excludeGroups.length ? form.excludeGroups : undefined,
-          excludeNumbers: excluded.length           ? excluded           : undefined,
+          recipientGroup: "all",
+          includeTags:    form.includeTags.length ? form.includeTags : undefined,
+          excludeNumbers: excluded.length         ? excluded         : undefined,
         });
         setEstimated(result.count);
       } catch {
@@ -1218,12 +1030,8 @@ export function CampaignForm({ mode }: CampaignFormProps) {
     return () => { if (reachTimerRef.current) clearTimeout(reachTimerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    form.group,
-    form.segmentId,
     // join to primitive to avoid referential inequality on every render
     form.includeTags.join(","),
-    form.excludeTags.join(","),
-    form.excludeGroups.join(","),
     form.excludeNumbers,
     readonly,
   ]);
@@ -1376,8 +1184,8 @@ export function CampaignForm({ mode }: CampaignFormProps) {
   // ── Render ────────────────────────────────────────────────────────────────
   const sections: React.ReactNode[] = [
     <StepDetails key="s1" form={form} onChange={onChange} readonly={readonly} />,
-    <StepAudience key="s2" form={form} onChange={onChange} readonly={readonly} estimated={estimated} />,
-    <StepContent  key="s3" form={form} onChange={onChange} readonly={readonly} />,
+    <StepAudience key="s2" form={form} onChange={onChange} readonly={readonly} estimated={estimated} apiTags={apiTags} />,
+    <StepContent  key="s3" form={form} onChange={onChange} readonly={readonly} tokens={tokens} />,
     <StepScheduleOrPerformance key="s4" form={form} onChange={onChange} readonly={readonly} mode={mode} />,
   ];
 

@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Search, Upload, Plus, Trash2, Ban, Pencil, CheckCircle2, AlertCircle, Braces, ArrowUpRight, Download } from "lucide-react";
 import { PageHeader, PrimaryButton, AvatarInitials } from "@/components/common";
-import { BRAND, TAG_COLORS } from "@/utils";
-import { useContacts, useContactGroups, useTokens } from "@/hooks";
+import { BRAND } from "@/utils";
+import { useContacts, useContactGroups, useTokens, useTags } from "@/hooks";
 import { contactsService } from "@/services";
 import { authStore } from "@/utils/auth.store";
 import { EditContactDrawer } from "./EditContactDrawer";
 import { ColumnVisibilityMenu } from "./ColumnVisibilityMenu";
 import type { Contact, ImportContactsResponse } from "@/types";
+
 
 export function Contacts() {
   const senderId = authStore.getUser()?.id ?? "";
@@ -48,6 +49,13 @@ export function Contacts() {
 
   const { groups } = useContactGroups();
   const { tokens } = useTokens();
+  const { tags: apiTags } = useTags();
+
+  // Build tag name → color map for table tag pills
+  const tagColorMap = useMemo(
+    () => new Map(apiTags.map((t) => [t.name, t.color])),
+    [apiTags]
+  );
 
   // Tokens that are currently toggled visible
   const visibleTokens = useMemo(
@@ -418,16 +426,21 @@ export function Contacts() {
                       <td className="px-6 py-3.5">
                         <div className="flex flex-wrap gap-1">
                           {contact.tags.length > 0 ? (
-                            contact.tags.map((tag) => (
+                            contact.tags.map((tag) => {
+                              const color = tagColorMap.get(tag);
+                              return (
                               <span
                                 key={tag}
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
-                                  TAG_COLORS[tag] ?? "bg-gray-50 text-gray-700 border-gray-200"
-                                }`}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-gray-200 bg-gray-100 text-gray-700"
                               >
+                                <span
+                                  className="w-2 h-2 rounded-full shrink-0 border border-black/10"
+                                  style={{ backgroundColor: color ?? "#d1d5db" }}
+                                />
                                 {tag}
                               </span>
-                            ))
+                              );
+                            })
                           ) : (
                             <span className="text-gray-300 text-xs">—</span>
                           )}

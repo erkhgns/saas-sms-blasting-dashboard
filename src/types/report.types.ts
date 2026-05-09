@@ -1,3 +1,6 @@
+// Legacy report types — superseded by analytics.types.ts
+// Kept for backward compatibility; do not add new types here.
+
 export interface DailyStat {
   date: string;
   sent: number;
@@ -15,22 +18,4 @@ export interface UsageStat {
   day: string;
   messages: number;
   credits: number;
-}
-
-export interface ReportSummary {
-  totalSent: number;
-  totalDelivered: number;
-  totalFailed: number;
-  creditsUsed: number;
-  deliveryRate: string;
-  failureRate: string;
-  changeVsLastWeek: string;
-  creditsRemaining: number;
-}
-
-export interface ReportsResponse {
-  summary: ReportSummary;
-  dailyStats: DailyStat[];
-  failureStats: FailureStat[];
-  usageStats: UsageStat[];
 }

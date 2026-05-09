@@ -15,6 +15,9 @@ export const authService = {
     return res;
   },
 
+  changePassword: (currentPassword: string, newPassword: string): Promise<void> =>
+    api.patch<void>("/auth/change-password", { currentPassword, newPassword }),
+
   regenerateApiKey: (): Promise<RegenerateApiKeyResponse> =>
     api.post<RegenerateApiKeyResponse>("/auth/api-key/regenerate", {}),
 

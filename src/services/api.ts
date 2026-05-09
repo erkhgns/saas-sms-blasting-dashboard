@@ -7,15 +7,24 @@ const API_TIMEOUT_MS = 15_000;
 
 // Routes that require x-api-key (ESP32 + frontend shared)
 const API_KEY_PREFIXES = ["/sms", "/users", "/contacts", "/analytics", "/inbox", "/device-logs", "/tags", "/tokens"];
-// Routes that never need auth headers
-const PUBLIC_PREFIXES = ["/auth", "/health"];
+
+// Only these specific auth routes are fully public (no headers needed).
+// Other /auth/* routes like /auth/change-password and /auth/api-key/regenerate
+// require Authorization: Bearer and must NOT be treated as public.
+const PUBLIC_PATHS = [
+  "/auth/register",
+  "/auth/login",
+  "/auth/refresh",
+  "/auth/logout",
+  "/health",
+];
 
 function needsApiKey(path: string) {
   return API_KEY_PREFIXES.some((p) => path.startsWith(p));
 }
 
 function isPublic(path: string) {
-  return PUBLIC_PREFIXES.some((p) => path.startsWith(p));
+  return PUBLIC_PATHS.some((p) => path.startsWith(p));
 }
 
 /**
