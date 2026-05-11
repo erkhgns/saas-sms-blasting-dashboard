@@ -929,19 +929,21 @@ function buildPayload(
   const scheduledAt =
     !form.sendNow && form.scheduledDate && form.scheduledTime
       ? new Date(`${form.scheduledDate}T${form.scheduledTime}`).toISOString()
-      : null;
+      : undefined; // omit entirely when not scheduled — don't send null
+
+  const excluded = cleanPhoneNumbers(form.excludeNumbers);
 
   return {
     senderId,
-    name:           form.name.trim(),
-    senderName:     "",
-    message:        form.message.trim(),
-    priority:       form.priority,
-    recipientGroup: "all",
-    segmentId:      null,
-    includeTags:    form.includeTags,
-    excludeNumbers: cleanPhoneNumbers(form.excludeNumbers),
-    scheduledAt,
+    name:       form.name.trim(),
+    message:    form.message.trim(),
+    senderName: "GabySMS",   // required non-empty string by API — hidden from UI
+    priority:   form.priority,
+
+    // Only include optional fields when they carry real values
+    ...(scheduledAt             ? { scheduledAt }                   : {}),
+    ...(form.includeTags.length ? { includeTags: form.includeTags } : {}),
+    ...(excluded.length         ? { excludeNumbers: excluded }      : {}),
   };
 }
 

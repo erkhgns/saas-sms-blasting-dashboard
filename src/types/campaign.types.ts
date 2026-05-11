@@ -140,7 +140,7 @@ export function emptyCampaignForm(): CampaignFormState {
     name: "",
     status: "DRAFT",
     message: "",
-    senderName: "GabySMS",
+    senderName: "GabySMS",   // required by API, not shown in UI
     priority: 0,
     group: "all",
     includeTags: [],
