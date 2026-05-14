@@ -4,15 +4,12 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
 } from "recharts";
 import {
-  Calendar, Download, RefreshCw, ChevronLeft, ChevronRight,
-  Cpu, AlertTriangle, Info, XCircle, ChevronDown, Check, MessageSquare,
-  BarChart2,
+  Calendar, Download, Info, ChevronDown, Check, MessageSquare, BarChart2,
 } from "lucide-react";
 import { PageHeader, PrimaryButton } from "@/components/common";
 import { BRAND, formatNumber } from "@/utils";
-import { useDeviceLogs, useReports } from "@/hooks";
+import { useReports } from "@/hooks";
 import type {
-  LogLevel, LogEvent,
   ReportDateRange, ReportDatePreset,
   CampaignReportStatus,
 } from "@/types";
@@ -31,67 +28,6 @@ const STATUS_STYLE: Record<CampaignReportStatus, string> = {
   "In Progress": "bg-blue-50   text-blue-700   border-blue-200",
   Failed:        "bg-red-50    text-red-700    border-red-200",
 };
-
-// ─── Level badge ─────────────────────────────────────────────────────────────
-const LEVEL_META: Record<LogLevel, { label: string; icon: React.ReactNode; cls: string }> = {
-  INFO:  { label: "INFO",  icon: <Info          className="w-3 h-3" />, cls: "bg-blue-50  text-blue-700  border-blue-200"  },
-  WARN:  { label: "WARN",  icon: <AlertTriangle className="w-3 h-3" />, cls: "bg-yellow-50 text-yellow-700 border-yellow-200" },
-  ERROR: { label: "ERROR", icon: <XCircle       className="w-3 h-3" />, cls: "bg-red-50   text-red-700   border-red-200"   },
-};
-
-function LevelBadge({ level }: { level: LogLevel }) {
-  const m = LEVEL_META[level];
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${m.cls}`}>
-      {m.icon}
-      {m.label}
-    </span>
-  );
-}
-
-// ─── Event tag ───────────────────────────────────────────────────────────────
-const EVENT_COLORS: Record<LogEvent, string> = {
-  BOOT:     "bg-purple-50 text-purple-700 border-purple-200",
-  WIFI:     "bg-sky-50    text-sky-700    border-sky-200",
-  MODEM:    "bg-indigo-50 text-indigo-700 border-indigo-200",
-  OUTBOUND: "bg-orange-50 text-orange-700 border-orange-200",
-  INBOUND:  "bg-teal-50   text-teal-700   border-teal-200",
-  PATCH:    "bg-red-50    text-red-700    border-red-200",
-  HEAP:     "bg-gray-50   text-gray-600   border-gray-200",
-  RESTART:  "bg-yellow-50 text-yellow-700 border-yellow-200",
-};
-
-function EventTag({ event }: { event: LogEvent }) {
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-medium border ${EVENT_COLORS[event]}`}>
-      {event}
-    </span>
-  );
-}
-
-// ─── Timestamp ───────────────────────────────────────────────────────────────
-function formatLogTs(iso: string) {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString("en-PH", {
-    month: "short", day: "numeric",
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-    hour12: false,
-  });
-}
-
-// ─── Log filter options ───────────────────────────────────────────────────────
-const LOG_LEVELS: Array<LogLevel | ""> = ["", "INFO", "WARN", "ERROR"];
-const LOG_EVENTS: Array<LogEvent | ""> = [
-  "", "BOOT", "WIFI", "MODEM", "OUTBOUND", "INBOUND", "PATCH", "HEAP", "RESTART",
-];
-
-const POLL_OPTIONS = [
-  { label: "Off",   value: 0     },
-  { label: "5 s",   value: 5000  },
-  { label: "15 s",  value: 15000 },
-  { label: "30 s",  value: 30000 },
-];
 
 // ─── Date range picker ────────────────────────────────────────────────────────
 type DateRangeValue = ReportDateRange;
@@ -299,25 +235,6 @@ export function Reports() {
       subColor: s ? "text-gray-600"  : "text-gray-400",
     },
   ];
-
-  // ── System Logs ──────────────────────────────────────────────────────────
-  const [logPage,  setLogPage]  = useState(1);
-  const [logLevel, setLogLevel] = useState<LogLevel | "">("");
-  const [logEvent, setLogEvent] = useState<LogEvent | "">("");
-  const [pollMs,   setPollMs]   = useState(0);
-
-  const { logs, meta, loading, error, refetch } = useDeviceLogs({
-    page:  logPage,
-    limit: 50,
-    level: logLevel || undefined,
-    event: logEvent || undefined,
-    pollMs,
-  });
-
-  const handleLevelChange = (v: string) => { setLogLevel(v as LogLevel | ""); setLogPage(1); };
-  const handleEventChange = (v: string) => { setLogEvent(v as LogEvent | ""); setLogPage(1); };
-
-  const selectCls = "px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white appearance-none";
 
   return (
     <div className="p-4 sm:p-8">
@@ -709,136 +626,6 @@ export function Reports() {
         );
       })()}
 
-      {/* ── System Logs ───────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-              <Cpu className="w-4 h-4 text-gray-600" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 leading-none">System Logs</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Real-time logs from the ESP32 device
-                {meta && (
-                  <span className="ml-1 font-medium text-gray-700">
-                    — {formatNumber(meta.total)} entr{meta.total === 1 ? "y" : "ies"}
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <select value={logLevel} onChange={(e) => handleLevelChange(e.target.value)} className={selectCls} style={{ outline: "none" }}>
-              <option value="">All levels</option>
-              {LOG_LEVELS.filter(Boolean).map((l) => <option key={l} value={l}>{l}</option>)}
-            </select>
-            <select value={logEvent} onChange={(e) => handleEventChange(e.target.value)} className={selectCls} style={{ outline: "none" }}>
-              <option value="">All events</option>
-              {LOG_EVENTS.filter(Boolean).map((e) => <option key={e} value={e}>{e}</option>)}
-            </select>
-            <select value={pollMs} onChange={(e) => setPollMs(Number(e.target.value))} className={selectCls} style={{ outline: "none" }} title="Auto-refresh interval">
-              {POLL_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label === "Off" ? "Auto-refresh: Off" : `Refresh: ${o.label}`}
-                </option>
-              ))}
-            </select>
-            <button onClick={refetch} disabled={loading} title="Refresh now" className="p-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50">
-              <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? "animate-spin" : ""}`} />
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="px-6 py-3 bg-red-50 border-b border-red-100 text-sm text-red-700">{error}</div>
-        )}
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Timestamp</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Level</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Event</th>
-                <th className="px-6 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Message</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 font-mono">
-              {loading ? (
-                Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i}>
-                    {[48, 16, 20, 64].map((w, j) => (
-                      <td key={j} className="px-6 py-3.5">
-                        <div className={`h-3.5 bg-gray-100 rounded animate-pulse w-${w}`} />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : logs.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-16 text-center text-gray-400 text-sm font-sans">
-                    <Cpu className="w-8 h-8 mx-auto mb-3 opacity-30" />
-                    No log entries found
-                    {(logLevel || logEvent) && (
-                      <span className="block text-xs mt-1">Try clearing the filters</span>
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                logs.map((log) => (
-                  <tr
-                    key={log.id}
-                    className={`transition-colors ${
-                      log.level === "ERROR"
-                        ? "bg-red-50/40 hover:bg-red-50"
-                        : log.level === "WARN"
-                        ? "bg-yellow-50/30 hover:bg-yellow-50/60"
-                        : "hover:bg-gray-50/60"
-                    }`}
-                  >
-                    <td className="px-6 py-3 text-[12px] text-gray-500 whitespace-nowrap">{formatLogTs(log.createdAt)}</td>
-                    <td className="px-6 py-3 font-sans"><LevelBadge level={log.level} /></td>
-                    <td className="px-6 py-3 font-sans"><EventTag event={log.event as LogEvent} /></td>
-                    <td className="px-6 py-3 text-[12px] text-gray-800 break-all">{log.message}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {meta && meta.totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-xs text-gray-500">
-              Page {meta.page} of {meta.totalPages}
-              <span className="ml-2 text-gray-400">
-                ({formatNumber((meta.page - 1) * meta.limit + 1)}–
-                {formatNumber(Math.min(meta.page * meta.limit, meta.total))} of {formatNumber(meta.total)})
-              </span>
-            </span>
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => setLogPage((p) => p - 1)}
-                disabled={meta.page <= 1}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                Prev
-              </button>
-              <button
-                onClick={() => setLogPage((p) => p + 1)}
-                disabled={meta.page >= meta.totalPages}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs text-white rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ backgroundColor: BRAND.primary }}
-              >
-                Next
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
