@@ -20,11 +20,15 @@ export const messagesService = {
   createBulkSms: (payload: BulkSmsPayload) =>
     api.post<BulkSmsResponse>("/sms/bulk", payload),
 
-  getSms: ({ senderId, status, page = 1, limit = 10, sortBy }: SmsListParams) =>
+  getSms: ({ senderId, status, priority, search, dateFrom, dateTo, page = 1, limit = 10, sortBy }: SmsListParams) =>
     api.get<SmsListResponse>("/sms", {
       senderId,
-      ...(status !== undefined ? { status } : {}),
-      ...(sortBy ? { sortBy } : {}),
+      ...(status   !== undefined ? { status }   : {}),
+      ...(priority !== undefined ? { priority }  : {}),
+      ...(search   ? { search }   : {}),
+      ...(dateFrom ? { dateFrom } : {}),
+      ...(dateTo   ? { dateTo }   : {}),
+      ...(sortBy   ? { sortBy }   : {}),
       page,
       limit,
     }),

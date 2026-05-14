@@ -73,10 +73,14 @@ export interface BulkSmsResponse {
 
 export interface SmsListParams {
   senderId: string;
-  status?: SmsStatus;
-  page?: number;
-  limit?: number;
-  sortBy?: "date";
+  status?:   SmsStatus;
+  priority?: 0 | 1 | 2;
+  search?:   string;
+  dateFrom?: string;   // YYYY-MM-DD
+  dateTo?:   string;   // YYYY-MM-DD
+  page?:     number;
+  limit?:    number;
+  sortBy?:   "date";
 }
 
 export interface SmsListMeta {

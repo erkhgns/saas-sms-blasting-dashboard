@@ -4,24 +4,36 @@ import { authStore } from "@/utils/auth.store";
 import type { SmsRecord, SmsListMeta, SmsStatus } from "@/types";
 
 interface UseSmsLogsOptions {
-  page?: number;
-  limit?: number;
-  status?: SmsStatus;
+  page?:     number;
+  limit?:    number;
+  status?:   SmsStatus;
+  priority?: 0 | 1 | 2;
+  search?:   string;
+  dateFrom?: string; // YYYY-MM-DD
+  dateTo?:   string; // YYYY-MM-DD
 }
 
 interface UseSmsLogsReturn {
-  logs: SmsRecord[];
-  meta: SmsListMeta | null;
+  logs:    SmsRecord[];
+  meta:    SmsListMeta | null;
   loading: boolean;
-  error: string | null;
+  error:   string | null;
   refetch: () => void;
 }
 
-export function useSmsLogs({ page = 1, limit = 10, status }: UseSmsLogsOptions = {}): UseSmsLogsReturn {
-  const [logs, setLogs] = useState<SmsRecord[]>([]);
-  const [meta, setMeta] = useState<SmsListMeta | null>(null);
+export function useSmsLogs({
+  page = 1,
+  limit = 10,
+  status,
+  priority,
+  search,
+  dateFrom,
+  dateTo,
+}: UseSmsLogsOptions = {}): UseSmsLogsReturn {
+  const [logs,    setLogs]    = useState<SmsRecord[]>([]);
+  const [meta,    setMeta]    = useState<SmsListMeta | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error,   setError]   = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -33,6 +45,10 @@ export function useSmsLogs({ page = 1, limit = 10, status }: UseSmsLogsOptions =
         page,
         limit,
         status,
+        priority,
+        search,
+        dateFrom,
+        dateTo,
         sortBy: "date",
       });
       setLogs(result.data);
@@ -42,7 +58,7 @@ export function useSmsLogs({ page = 1, limit = 10, status }: UseSmsLogsOptions =
     } finally {
       setLoading(false);
     }
-  }, [page, limit, status]);
+  }, [page, limit, status, priority, search, dateFrom, dateTo]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
