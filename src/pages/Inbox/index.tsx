@@ -307,9 +307,10 @@ export function Inbox() {
     setSendError(null);
     try {
       await messagesService.createBulkSms({
-        content: replyText.trim(),
+        content:   replyText.trim(),
         receivers: [selectedPhone],
         senderId,
+        priority:  2, // Urgent — inbox replies always get top priority
       });
       setReplyText("");
       refetchConversation();
