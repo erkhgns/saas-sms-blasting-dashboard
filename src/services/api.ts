@@ -50,23 +50,38 @@ export class ApiError extends Error {
   }
 }
 
+// Shared in-flight refresh promise — prevents multiple simultaneous 401s from
+// each firing their own POST /auth/refresh and invalidating each other's tokens
+// (critical with rolling refresh tokens where each refresh invalidates the last).
+let _refreshPromise: Promise<string> | null = null;
+
 // Calls /auth/refresh directly (not through request()) to avoid infinite loops
 async function refreshTokens(): Promise<string> {
-  const refreshToken = authStore.getRefreshToken();
-  if (!refreshToken) throw new Error("No refresh token");
+  // If a refresh is already in progress, share it — don't fire a second one
+  if (_refreshPromise) return _refreshPromise;
 
-  const res = await fetch(`${BASE_URL}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken }),
+  _refreshPromise = (async () => {
+    const refreshToken = authStore.getRefreshToken();
+    if (!refreshToken) throw new Error("No refresh token");
+
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) throw new Error("Refresh failed");
+
+    const data = await res.json();
+    authStore.setAccessToken(data.accessToken);
+    authStore.setRefreshToken(data.refreshToken);
+    return data.accessToken as string;
+  })().finally(() => {
+    // Always clear the lock so future expiries can refresh again
+    _refreshPromise = null;
   });
 
-  if (!res.ok) throw new Error("Refresh failed");
-
-  const data = await res.json();
-  authStore.setAccessToken(data.accessToken);
-  authStore.setRefreshToken(data.refreshToken);
-  return data.accessToken;
+  return _refreshPromise;
 }
 
 async function request<T>(
