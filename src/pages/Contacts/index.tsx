@@ -167,12 +167,23 @@ export function Contacts() {
             />
             <button
               onClick={() => {
-                const csv = [
-                  "name,phone,email,tags",
-                  'Maria Santos,09171234567,maria@example.com,"VIP,Repeat Customer"',
-                  "Juan Dela Cruz,+639181234567,,Reseller",
-                  "Pedro Reyes,09191234567,,",
-                ].join("\n");
+                // Base columns + one column per token (keyed by token.key)
+                const tokenKeys = tokens.map((t) => t.key);
+                const header    = ["name", "phone", "email", "tags", ...tokenKeys].join(",");
+
+                // Build sample rows — token columns get the token's fallback as a hint
+                const tokenSamples1 = tokens.map((t) => t.fallback ?? "").join(",");
+                const tokenSamples2 = tokens.map(() => "").join(",");
+                const tokenSamples3 = tokens.map(() => "").join(",");
+
+                const rows = [
+                  header,
+                  `Maria Santos,09171234567,maria@example.com,"VIP,Repeat Customer"${tokenSamples1 ? "," + tokenSamples1 : ""}`,
+                  `Juan Dela Cruz,+639181234567,,Reseller${tokenSamples2 ? "," + tokenSamples2 : ""}`,
+                  `Pedro Reyes,09191234567,,${tokenSamples3 ? "," + tokenSamples3 : ""}`,
+                ];
+
+                const csv  = rows.join("\n");
                 const blob = new Blob([csv], { type: "text/csv" });
                 const url  = URL.createObjectURL(blob);
                 const a    = document.createElement("a");
