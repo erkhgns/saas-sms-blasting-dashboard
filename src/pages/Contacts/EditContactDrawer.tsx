@@ -153,13 +153,18 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
     setSaving(true);
     try {
       if (isCreate) {
+        // Send token values via the `tokens` field — API merges them into
+        // customFields and preserves any existing keys not included here.
+        const filledTokens = Object.fromEntries(
+          Object.entries(customFields).filter(([, v]) => v && String(v).trim())
+        );
         await contactsService.create({
           senderId: authStore.getUser()?.id ?? "",
           name:  name.trim(),
           phone: phone.trim(),
           email: email.trim() || undefined,
           tags,
-          customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
+          tokens: Object.keys(filledTokens).length > 0 ? filledTokens : undefined,
         });
       } else {
         await contactsService.update(contact.id, {

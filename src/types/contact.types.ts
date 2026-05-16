@@ -39,7 +39,12 @@ export interface CreateContactPayload {
   phone: string;
   email?: string;
   tags?: ContactTag[];
-  // Optional — Add modal skips this; filled via the EditContactDrawer after creation
+  /**
+   * Token key→value pairs. API merges these into customFields — only the
+   * keys you send are updated, unmatched keys on existing contacts are preserved.
+   * Preferred over sending `customFields` directly on POST /contacts.
+   */
+  tokens?: Record<string, string>;
   customFields?: Record<string, string>;
 }
 

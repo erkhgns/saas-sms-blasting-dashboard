@@ -26,6 +26,7 @@ export function Contacts() {
   const [togglingOptOutId, setTogglingOptOutId] = useState<string | null>(null);
   const [importing, setImporting]               = useState(false);
   const [importResult, setImportResult]         = useState<ImportContactsResponse | null>(null);
+  const [importError, setImportError]           = useState<string | null>(null);
   const [visibleCustomCols, setVisibleCustomCols] = useState<string[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
@@ -136,13 +137,14 @@ export function Contacts() {
     if (!file) return;
     e.target.value = "";
     setImportResult(null);
+    setImportError(null);
     setImporting(true);
     try {
       const result = await contactsService.importCsv(file, senderId);
       setImportResult(result);
       refetch();
     } catch (err) {
-      console.error("Import failed", err);
+      setImportError(err instanceof Error ? err.message : "CSV import failed. Please try again.");
     } finally {
       setImporting(false);
     }
@@ -212,6 +214,18 @@ export function Contacts() {
           </>
         }
       />
+
+      {/* CSV import error banner */}
+      {importError && (
+        <div className="mb-6 px-4 py-3 rounded-lg border bg-red-50 border-red-200 text-red-800 text-sm flex items-start gap-3">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-medium">Import failed</p>
+            <p className="text-xs mt-0.5 opacity-80">{importError}</p>
+          </div>
+          <button onClick={() => setImportError(null)} className="text-red-400 hover:text-red-600 shrink-0">✕</button>
+        </div>
+      )}
 
       {/* CSV import result banner */}
       {importResult && (
