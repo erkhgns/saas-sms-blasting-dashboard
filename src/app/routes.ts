@@ -11,6 +11,7 @@ import { Inbox } from "@/pages/Inbox";
 import { Reports } from "@/pages/Reports";
 import { Settings } from "@/pages/Settings";
 import { Logs } from "@/pages/Logs";
+import { ApiDocs } from "@/pages/ApiDocs";
 
 // Wrapper components so React Router gets proper component references
 // (React Router requires components, not JSX or function calls)
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
           { path: "inbox", Component: Inbox },
           { path: "reports", Component: Reports },
           { path: "logs", Component: Logs },
+          { path: "api-docs", Component: ApiDocs },
           { path: "settings", Component: Settings },
         ],
       },
