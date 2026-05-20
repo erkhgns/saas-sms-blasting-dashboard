@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Upload, Users, Calendar, Send as SendIcon, X, RefreshCw, FileText, Search, UserCheck, Download } from "lucide-react";
+import { Upload, Users, Calendar, Send as SendIcon, X, RefreshCw, FileText, Search, UserCheck, Download, Clock } from "lucide-react";
 import { PageHeader, PrimaryButton } from "@/components/common";
 import { BRAND, getSmsSegmentCount, authStore, cleanPhoneNumbers, TAG_COLORS } from "@/utils";
 import { PRIORITY_FROM_LABEL } from "@/types";
@@ -22,6 +22,27 @@ function extractPhones(raw: string): string[] {
     if (/^[+\d][\d\s\-().]{6,}$/.test(stripped)) tokens.push(stripped);
   }
   return cleanPhoneNumbers(tokens.join("\n"));
+}
+
+/** Returns true if the string contains any emoji character. */
+function hasEmoji(text: string): boolean {
+  return /\p{Emoji_Presentation}/u.test(text);
+}
+
+/** Format a total-seconds value into a human-readable duration string. */
+function formatEstimatedTime(totalSeconds: number): string {
+  if (totalSeconds <= 0) return "—";
+  if (totalSeconds < 60) {
+    return `${totalSeconds} sec${totalSeconds !== 1 ? "s" : ""}`;
+  }
+  if (totalSeconds < 3600) {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return secs > 0 ? `${mins} min ${secs} sec` : `${mins} min`;
+  }
+  const hrs  = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  return mins > 0 ? `${hrs} hr ${mins} min` : `${hrs} hr`;
 }
 
 // ─── ContactSearchPicker ──────────────────────────────────────────────────────
@@ -370,6 +391,7 @@ export function SendSMS() {
     setSendError(null);
     setSendSuccess(null);
     if (!message.trim()) { setSendError("Please enter a message."); return; }
+    if (hasEmoji(message)) { setSendError("Emojis are not supported. Please remove them before sending."); return; }
 
     // Schedule validation
     let scheduledAt: string | null = null;
@@ -452,6 +474,22 @@ export function SendSMS() {
     }
   };
 
+  // ── estimated send time (recipients × segments × 5 sec each) ────────────
+  const estimatedRecipients = (() => {
+    if (recipientType === "contacts") {
+      if (contactMode === "group") return contactReach ?? 0;
+      return pickedContacts.filter((c) => !c.optedOut).length;
+    }
+    if (recipientType === "manual") {
+      const excluded = new Set(cleanPhoneNumbers(excludeNumbers));
+      return cleanPhoneNumbers(manualNumbers).filter((n) => !excluded.has(n)).length;
+    }
+    // upload
+    const excluded = new Set(cleanPhoneNumbers(excludeNumbers));
+    return uploadedNumbers.filter((n) => !excluded.has(n)).length;
+  })();
+  const estimatedSeconds = estimatedRecipients * segmentCount * 5;
+
   // ─── style helpers ────────────────────────────────────────────────────────
   const tabStyle = (active: boolean) => active ? { borderColor: BRAND.primary, backgroundColor: BRAND.primaryLight } : {};
   const tabClass = (active: boolean) => `flex-1 px-4 py-2.5 rounded-lg border-2 font-medium transition-colors ${active ? "text-gray-900" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`;
@@ -481,10 +519,31 @@ export function SendSMS() {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Type your message here..."
-              className="w-full h-40 px-4 py-3 border border-gray-300 rounded-lg resize-none"
-              style={{ outline: "none" }}
-              {...textareaFocus}
+              className="w-full h-40 px-4 py-3 border rounded-lg resize-none"
+              style={{
+                outline: "none",
+                borderColor: hasEmoji(message) ? "#ef4444" : "#d1d5db",
+                boxShadow: hasEmoji(message) ? "0 0 0 2px rgba(239, 68, 68, 0.15)" : "none",
+              }}
+              onFocus={(e) => {
+                if (!hasEmoji(message)) {
+                  e.target.style.borderColor = BRAND.primary;
+                  e.target.style.boxShadow = "0 0 0 2px rgba(255, 105, 46, 0.2)";
+                }
+              }}
+              onBlur={(e) => {
+                if (!hasEmoji(message)) {
+                  e.target.style.borderColor = "#d1d5db";
+                  e.target.style.boxShadow = "none";
+                }
+              }}
             />
+            {hasEmoji(message) && (
+              <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                <span>⚠</span>
+                <span>Emojis are not supported and will prevent sending. Please remove them.</span>
+              </div>
+            )}
             <div className="flex items-center mt-2 text-sm text-gray-600">
               <span className={characterCount > 160 ? "text-orange-600 font-medium" : "text-gray-900 font-medium"}>
                 {characterCount}
@@ -854,6 +913,22 @@ export function SendSMS() {
               )}
             </div>
           </div>
+
+          {/* ── Estimated Send Time ───────────────────────────────────── */}
+          {estimatedRecipients > 0 && segmentCount > 0 && (
+            <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 text-sm">
+              <Clock className="w-4 h-4 shrink-0 text-gray-400" />
+              <span className="text-gray-600">
+                Estimated time to send:{" "}
+                <span className="font-semibold text-gray-900">{formatEstimatedTime(estimatedSeconds)}</span>
+              </span>
+              <span className="text-gray-400 text-xs ml-auto hidden sm:inline">
+                {estimatedRecipients.toLocaleString()} recipient{estimatedRecipients !== 1 ? "s" : ""}
+                {" "}×{" "}{segmentCount} segment{segmentCount !== 1 ? "s" : ""}
+                {" "}× 5 sec
+              </span>
+            </div>
+          )}
 
           {/* ── Feedback ──────────────────────────────────────────────── */}
           {sendError && (

@@ -4,9 +4,9 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
 } from "recharts";
 import {
-  Calendar, Download, Info, ChevronDown, Check, MessageSquare, BarChart2,
+  Calendar, Info, ChevronDown, Check, MessageSquare, BarChart2,
 } from "lucide-react";
-import { PageHeader, PrimaryButton } from "@/components/common";
+import { PageHeader } from "@/components/common";
 import { BRAND, formatNumber } from "@/utils";
 import { useReports } from "@/hooks";
 import type {
@@ -228,12 +228,6 @@ export function Reports() {
       sub:      s ? `${failureRatePct}% failure rate`   : "No data for this period",
       subColor: s ? "text-red-600"   : "text-gray-400",
     },
-    {
-      label:    "Avg. Send Time",
-      value:    s ? `${(s.avgSendTimeMs / 1000).toFixed(1)}s` : "N/A",
-      sub:      s ? `per SMS · ~${formatNumber(s.throughputPerHour)}/hr` : "No data for this period",
-      subColor: s ? "text-gray-600"  : "text-gray-400",
-    },
   ];
 
   return (
@@ -241,19 +235,11 @@ export function Reports() {
       <PageHeader
         title="Reports"
         subtitle="Analytics and device diagnostics for your SMS system"
-        actions={
-          <>
-            <DateRangePicker value={dateRange} onChange={setDateRange} />
-            <PrimaryButton>
-              <Download className="w-5 h-5" />
-              Export
-            </PrimaryButton>
-          </>
-        }
+        actions={<DateRangePicker value={dateRange} onChange={setDateRange} />}
       />
 
       {/* ── Summary Cards ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {summaryCards.map((card) => (
           <div key={card.label} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="text-sm text-gray-600 mb-2">{card.label}</div>

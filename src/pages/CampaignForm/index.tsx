@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Check, X, Users, AlertTriangle } from "lucide-react";
+import { Check, X, Users, AlertTriangle, Clock } from "lucide-react";
 import {
   BRAND,
   CAMPAIGN_STATUS_COLORS,
@@ -24,6 +24,27 @@ import type {
   ApiToken,
   Tag,
 } from "@/types";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Returns true if the string contains any emoji character. */
+function hasEmoji(text: string): boolean {
+  return /\p{Emoji_Presentation}/u.test(text);
+}
+
+/** Format a total-seconds value into a human-readable duration string. */
+function formatEstimatedTime(totalSeconds: number): string {
+  if (totalSeconds <= 0) return "—";
+  if (totalSeconds < 60) return `${totalSeconds} sec${totalSeconds !== 1 ? "s" : ""}`;
+  if (totalSeconds < 3600) {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return secs > 0 ? `${mins} min ${secs} sec` : `${mins} min`;
+  }
+  const hrs  = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  return mins > 0 ? `${hrs} hr ${mins} min` : `${hrs} hr`;
+}
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -200,6 +221,7 @@ function MessageEditor({
   const charCount  = value.length;
   const segCount   = Math.max(1, Math.ceil(charCount / 160));
   const tokenCount = (value.match(/\{\{(\w+)\}\}/g) || []).length;
+  const emojiFound = hasEmoji(value);
 
   return (
     <div className="relative">
@@ -210,9 +232,13 @@ function MessageEditor({
         onChange={(e) => onChange(e.target.value)}
         onKeyUp={onKeyUp}
         placeholder="Type your message here. Type {{ to insert a personalization token…"
-        className={`w-full h-40 px-4 py-3 border border-gray-300 rounded-lg resize-none outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 text-sm ${
+        className={`w-full h-40 px-4 py-3 border rounded-lg resize-none outline-none text-sm ${
           readOnly ? "bg-gray-50 text-gray-700" : ""
         }`}
+        style={{
+          borderColor: emojiFound ? "#ef4444" : undefined,
+          boxShadow:   emojiFound ? "0 0 0 2px rgba(239, 68, 68, 0.15)" : undefined,
+        }}
       />
       <div className="absolute right-2 bottom-2">
         <button
@@ -234,6 +260,12 @@ function MessageEditor({
         </button>
         {pickerOpen && <TokenPicker onPick={insertToken} anchor="up" tokens={tokens} />}
       </div>
+      {emojiFound && (
+        <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+          <span>⚠</span>
+          <span>Emojis are not supported and will prevent sending. Please remove them.</span>
+        </div>
+      )}
       <div className="flex items-center justify-between mt-2 text-sm">
         <div className="text-gray-600">
           <span
@@ -1052,6 +1084,7 @@ export function CampaignForm({ mode }: CampaignFormProps) {
   const validateStep = (s: number): string | null => {
     if (s === 1 && !form.name.trim()) return "Campaign name is required.";
     if (s === 3 && !form.message.trim()) return "Message is required.";
+    if (s === 3 && hasEmoji(form.message)) return "Emojis are not supported. Please remove them from the message.";
     if (s === 4 && !form.sendNow) {
       if (!form.scheduledDate) return "Please select a date.";
       if (!form.scheduledTime) return "Please select a time.";
@@ -1276,12 +1309,30 @@ export function CampaignForm({ mode }: CampaignFormProps) {
           </>
         ) : (
           <>
-            <div className="text-sm text-gray-600">
-              Will send to{" "}
-              <span className="font-semibold text-gray-900">
-                {formatNumber(estimated)}
-              </span>{" "}
-              recipients
+            <div className="flex flex-col gap-0.5">
+              <div className="text-sm text-gray-600">
+                Will send to{" "}
+                <span className="font-semibold text-gray-900">
+                  {formatNumber(estimated)}
+                </span>{" "}
+                recipients
+              </div>
+              {estimated > 0 && form.message.trim() && (() => {
+                const segCount = Math.max(1, Math.ceil(form.message.length / 160));
+                const totalSec = estimated * segCount * 5;
+                return (
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span>
+                      Est. send time:{" "}
+                      <span className="font-semibold text-gray-700">{formatEstimatedTime(totalSec)}</span>
+                      <span className="text-gray-400 ml-1 hidden sm:inline">
+                        ({formatNumber(estimated)} × {segCount} seg × 5 sec)
+                      </span>
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
             <div className="flex items-center gap-3">
               <button
