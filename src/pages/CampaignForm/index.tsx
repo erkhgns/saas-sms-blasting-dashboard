@@ -27,11 +27,6 @@ import type {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Returns true if the string contains any emoji character. */
-function hasEmoji(text: string): boolean {
-  return /\p{Emoji_Presentation}/u.test(text);
-}
-
 /** Format a total-seconds value into a human-readable duration string. */
 function formatEstimatedTime(totalSeconds: number): string {
   if (totalSeconds <= 0) return "—";
@@ -221,8 +216,6 @@ function MessageEditor({
   const charCount  = value.length;
   const segCount   = Math.max(1, Math.ceil(charCount / 160));
   const tokenCount = (value.match(/\{\{(\w+)\}\}/g) || []).length;
-  const emojiFound = hasEmoji(value);
-
   return (
     <div className="relative">
       <textarea
@@ -232,13 +225,9 @@ function MessageEditor({
         onChange={(e) => onChange(e.target.value)}
         onKeyUp={onKeyUp}
         placeholder="Type your message here. Type {{ to insert a personalization token…"
-        className={`w-full h-40 px-4 py-3 border rounded-lg resize-none outline-none text-sm ${
+        className={`w-full h-40 px-4 py-3 border border-gray-300 rounded-lg resize-none outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 text-sm ${
           readOnly ? "bg-gray-50 text-gray-700" : ""
         }`}
-        style={{
-          borderColor: emojiFound ? "#ef4444" : undefined,
-          boxShadow:   emojiFound ? "0 0 0 2px rgba(239, 68, 68, 0.15)" : undefined,
-        }}
       />
       <div className="absolute right-2 bottom-2">
         <button
@@ -260,12 +249,6 @@ function MessageEditor({
         </button>
         {pickerOpen && <TokenPicker onPick={insertToken} anchor="up" tokens={tokens} />}
       </div>
-      {emojiFound && (
-        <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-          <span>⚠</span>
-          <span>Emojis are not supported and will prevent sending. Please remove them.</span>
-        </div>
-      )}
       <div className="flex items-center justify-between mt-2 text-sm">
         <div className="text-gray-600">
           <span
@@ -1084,7 +1067,6 @@ export function CampaignForm({ mode }: CampaignFormProps) {
   const validateStep = (s: number): string | null => {
     if (s === 1 && !form.name.trim()) return "Campaign name is required.";
     if (s === 3 && !form.message.trim()) return "Message is required.";
-    if (s === 3 && hasEmoji(form.message)) return "Emojis are not supported. Please remove them from the message.";
     if (s === 4 && !form.sendNow) {
       if (!form.scheduledDate) return "Please select a date.";
       if (!form.scheduledTime) return "Please select a time.";
