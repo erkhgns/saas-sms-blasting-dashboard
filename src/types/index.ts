@@ -1,4 +1,5 @@
 export * from "./analytics.types";
+export * from "./auto-reply.types";
 export * from "./campaign.types";
 export * from "./contact.types";
 export * from "./inbox.types";

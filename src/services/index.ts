@@ -1,4 +1,5 @@
 export * from "./api";
+export * from "./auto-reply.service";
 export * from "./analytics.service";
 export * from "./campaigns.service";
 export * from "./contacts.service";
