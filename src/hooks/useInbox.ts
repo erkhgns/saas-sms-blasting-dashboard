@@ -27,7 +27,6 @@ export function useInbox(page = 1, limit = 20): UseInboxResult {
     inboxService
       .getInbox(page, limit)
       .then((res) => {
-        console.log('RESPSS',res)
         if (!cancelled) {
           setThreads(res.data);
           setMeta(res.meta);

@@ -1,6 +1,6 @@
 import { api } from "./api";
 import { authStore } from "@/utils/auth.store";
-import type { LoginPayload, LoginResponse, RegisterPayload, AuthUser, RefreshResponse, RegenerateApiKeyResponse } from "@/types";
+import type { LoginPayload, LoginResponse, RegisterPayload, AuthUser, RefreshResponse, RegenerateApiKeyResponse, ForgotPasswordPayload, ForgotPasswordResponse, ResetPasswordPayload, ResetPasswordResponse } from "@/types";
 
 export const authService = {
   register: (payload: RegisterPayload) =>
@@ -17,6 +17,14 @@ export const authService = {
 
   changePassword: (currentPassword: string, newPassword: string): Promise<void> =>
     api.patch<void>("/auth/change-password", { currentPassword, newPassword }),
+
+  /** Always returns 200 — never reveals if the number is registered. */
+  forgotPassword: (payload: ForgotPasswordPayload): Promise<ForgotPasswordResponse> =>
+    api.post<ForgotPasswordResponse>("/auth/forgot-password", payload),
+
+  /** Returns 200 on success, throws on wrong/expired OTP (400). */
+  resetPassword: (payload: ResetPasswordPayload): Promise<ResetPasswordResponse> =>
+    api.post<ResetPasswordResponse>("/auth/reset-password", payload),
 
   regenerateApiKey: (): Promise<RegenerateApiKeyResponse> =>
     api.post<RegenerateApiKeyResponse>("/auth/api-key/regenerate", {}),

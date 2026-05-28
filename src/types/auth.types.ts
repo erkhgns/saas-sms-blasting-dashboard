@@ -36,6 +36,24 @@ export interface RefreshResponse {
   refreshToken: string;
 }
 
+export interface ForgotPasswordPayload {
+  phoneNumber: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
+export interface ResetPasswordPayload {
+  phoneNumber: string;
+  otp: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
+
 // Legacy aliases kept so other files don't break
 export type User = AuthUser;
 export interface AuthResponse extends LoginResponse {}
