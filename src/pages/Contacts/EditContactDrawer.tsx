@@ -207,9 +207,8 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
     ...(tokens.length > 0 || tokensLoading
       ? [{ key: "custom" as DrawerTab, label: "Custom Fields", icon: <Braces className="w-4 h-4" />, count: filledCount > 0 ? filledCount : undefined }]
       : []),
-    ...(!isCreate
-      ? [{ key: "activity" as DrawerTab, label: "Activity", icon: <Clock className="w-4 h-4" /> }]
-      : []),
+    // Activity tab hidden until timeline feature is implemented
+    // ...(!isCreate ? [{ key: "activity" as DrawerTab, label: "Activity", icon: <Clock className="w-4 h-4" /> }] : []),
   ];
 
   return (

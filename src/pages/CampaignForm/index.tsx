@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Check, X, Users, AlertTriangle, Clock } from "lucide-react";
+import { Check, X, Users, AlertTriangle, Clock, XCircle } from "lucide-react";
 import {
   BRAND,
   CAMPAIGN_STATUS_COLORS,
@@ -15,6 +15,7 @@ import {
   emptyCampaignForm,
   CAMPAIGN_STATUS_LABELS,
   LOCKED_CAMPAIGN_STATUSES,
+  CANCELLABLE_CAMPAIGN_STATUSES,
 } from "@/types";
 import type {
   CampaignFormState,
@@ -962,6 +963,60 @@ function buildPayload(
   };
 }
 
+// ── CancelCampaignModal ───────────────────────────────────────────────────────
+
+function CancelCampaignModal({
+  campaignName,
+  cancelling,
+  onConfirm,
+  onClose,
+}: {
+  campaignName: string;
+  cancelling: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-sm p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+            <XCircle className="w-5 h-5 text-orange-500" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">Cancel Campaign</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Are you sure you want to cancel{" "}
+              <strong className="text-gray-800">"{campaignName}"</strong>?
+            </p>
+            <p className="text-sm text-gray-400 mt-1">
+              All unsent messages will be stopped immediately. This cannot be undone.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 justify-end pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={cancelling}
+            className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Keep campaign
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={cancelling}
+            className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {cancelling ? "Cancelling…" : "Yes, cancel it"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main CampaignForm ─────────────────────────────────────────────────────────
 
 export function CampaignForm({ mode }: CampaignFormProps) {
@@ -981,9 +1036,10 @@ export function CampaignForm({ mode }: CampaignFormProps) {
   const [form, setForm]           = useState<CampaignFormState>(emptyCampaignForm);
   const [fetchLoading, setFetchLoading] = useState(!isCreate);
   const [fetchError, setFetchError]     = useState<string | null>(null);
-  const [saving, setSaving]       = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [estimated, setEstimated] = useState(0);
+  const [saving, setSaving]             = useState(false);
+  const [saveError, setSaveError]       = useState<string | null>(null);
+  const [estimated, setEstimated]       = useState(0);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   // ── Fetch existing campaign for edit/view ────────────────────────────────
   useEffect(() => {
@@ -1017,6 +1073,7 @@ export function CampaignForm({ mode }: CampaignFormProps) {
           recipients:   c.recipients,
           deliveryRate: c.deliveryRate,
         }));
+        // Stop polling once campaign reaches any terminal state
         if (c.status !== "IN_PROGRESS" && pollRef.current)
           clearInterval(pollRef.current);
       } catch {
@@ -1155,6 +1212,25 @@ export function CampaignForm({ mode }: CampaignFormProps) {
     }
   };
 
+  const handleCancelCampaign = async () => {
+    if (!id) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await campaignsService.cancel(id);
+      // Stop polling and update local status — no re-fetch needed
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      setForm((prev) => ({ ...prev, status: "CANCELLED" }));
+      setShowCancelModal(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to cancel campaign.";
+      setSaveError(msg.includes("409") ? "This campaign cannot be cancelled in its current state." : msg);
+      setShowCancelModal(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ── Title / subtitle ──────────────────────────────────────────────────────
   const statusLabel = form.status ? CAMPAIGN_STATUS_LABELS[form.status] ?? form.status : "";
 
@@ -1247,6 +1323,16 @@ export function CampaignForm({ mode }: CampaignFormProps) {
         </div>
       )}
 
+      {/* Cancel confirmation modal */}
+      {showCancelModal && (
+        <CancelCampaignModal
+          campaignName={form.name || "this campaign"}
+          cancelling={saving}
+          onConfirm={handleCancelCampaign}
+          onClose={() => setShowCancelModal(false)}
+        />
+      )}
+
       {/* Sticky action bar */}
       <div className="sticky bottom-0 -mx-8 px-8 py-4 bg-white border-t border-gray-200 flex items-center justify-between">
         {mode === "view" ? (
@@ -1261,7 +1347,9 @@ export function CampaignForm({ mode }: CampaignFormProps) {
               >
                 <path d="M12 9v2m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
               </svg>
-              {isLocked
+              {form.status === "CANCELLED"
+                ? "This campaign was cancelled. Duplicate it to start a new one."
+                : isLocked
                 ? "This campaign has been sent. Editing is locked."
                 : "View-only mode."}
             </div>
@@ -1273,6 +1361,17 @@ export function CampaignForm({ mode }: CampaignFormProps) {
               >
                 Back to list
               </button>
+              {/* Cancel button — only for SCHEDULED or IN_PROGRESS */}
+              {CANCELLABLE_CAMPAIGN_STATUSES.includes(form.status) && (
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(true)}
+                  disabled={saving}
+                  className="px-5 py-3 border border-orange-300 text-orange-600 rounded-lg font-medium hover:bg-orange-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel campaign
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleDuplicate}

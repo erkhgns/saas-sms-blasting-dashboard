@@ -36,6 +36,7 @@ export const CAMPAIGN_STATUS_COLORS: Record<string, string> = {
   "In Progress":"bg-blue-50   text-blue-700  border-blue-200",
   Sent:         "bg-green-50  text-green-700 border-green-200",
   Failed:       "bg-red-50    text-red-700   border-red-200",
+  Cancelled:    "bg-gray-100  text-gray-500  border-gray-300",
 };
 
 export const PRIORITY_COLORS: Record<string, string> = {
@@ -45,15 +46,17 @@ export const PRIORITY_COLORS: Record<string, string> = {
 };
 
 export const SMS_STATUS_COLORS: Record<string, string> = {
-  PENDING: "bg-gray-50 text-gray-700 border-gray-200",
-  SENT:    "bg-green-50 text-green-700 border-green-200",
-  FAILED:  "bg-red-50 text-red-700 border-red-200",
+  PENDING:   "bg-gray-50  text-gray-700  border-gray-200",
+  SENT:      "bg-green-50 text-green-700 border-green-200",
+  FAILED:    "bg-red-50   text-red-700   border-red-200",
+  CANCELLED: "bg-gray-100 text-gray-500  border-gray-300",
 };
 
 export const SMS_STATUS_LABELS: Record<string, string> = {
-  PENDING: "Pending",
-  SENT:    "Sent",
-  FAILED:  "Failed",
+  PENDING:   "Pending",
+  SENT:      "Sent",
+  FAILED:    "Failed",
+  CANCELLED: "Cancelled",
 };
 
 export const PAGE_SIZE = 10;

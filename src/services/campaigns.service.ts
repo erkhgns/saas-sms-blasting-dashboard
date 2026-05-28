@@ -78,4 +78,12 @@ export const campaignsService = {
 
   duplicate: (id: string) =>
     api.post<Campaign>(`/campaigns/${id}/duplicate`, {}),
+
+  /**
+   * POST /campaigns/:id/cancel — stops all pending SMS immediately.
+   * Only valid for SCHEDULED or IN_PROGRESS campaigns (409 otherwise).
+   * Returns 204 No Content on success.
+   */
+  cancel: (id: string) =>
+    api.post<void>(`/campaigns/${id}/cancel`, {}),
 };

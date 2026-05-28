@@ -41,7 +41,7 @@ export interface CreateSmsPayload {
   senderId: string;
 }
 
-export type SmsStatus = "PENDING" | "SENT" | "FAILED";
+export type SmsStatus = "PENDING" | "SENT" | "FAILED" | "CANCELLED";
 
 export interface SmsRecord {
   id: string;

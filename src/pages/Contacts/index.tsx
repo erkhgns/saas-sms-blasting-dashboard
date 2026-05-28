@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Search, Upload, Plus, Trash2, Ban, Pencil, CheckCircle2, AlertCircle, Braces, ArrowUpRight, Download } from "lucide-react";
 import { PageHeader, PrimaryButton, AvatarInitials } from "@/components/common";
 import { BRAND } from "@/utils";
-import { useContacts, useContactGroups, useTokens, useTags } from "@/hooks";
+import { useContacts, useTokens, useTags } from "@/hooks";
 import { contactsService } from "@/services";
 import { authStore } from "@/utils/auth.store";
 import { EditContactDrawer } from "./EditContactDrawer";
@@ -15,6 +15,7 @@ export function Contacts() {
   const STORAGE_KEY = `contacts.visibleCustomCols.${senderId}`;
 
   const [page, setPage]               = useState(1);
+  const [limit, setLimit]             = useState(10);
   const [search, setSearch]           = useState("");
   const [tagFilter, setTagFilter]     = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -43,12 +44,11 @@ export function Contacts() {
   }, [visibleCustomCols, senderId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { contacts, meta, loading, error, refetch } = useContacts({
-    page, limit: 10,
+    page, limit,
     search: search.trim() || undefined,
     tag:    tagFilter || undefined,
   });
 
-  const { groups } = useContactGroups();
   const { tokens } = useTokens();
   const { tags: apiTags } = useTags();
 
@@ -324,12 +324,12 @@ export function Contacts() {
             className="px-4 py-2.5 border border-gray-300 rounded-lg appearance-none bg-white text-sm"
             style={{ outline: "none" }}
           >
-            {groups.map((g) => (
-              <option key={g.id} value={g.id === "all" ? "" : g.id}>
-                {g.name} ({g.count.toLocaleString()})
+            <option value="">All Tags</option>
+            {apiTags.map((t) => (
+              <option key={t.id} value={t.name}>
+                {t.name}
               </option>
             ))}
-            {groups.length === 0 && <option value="">All Tags</option>}
           </select>
 
           {/* Column visibility menu */}
@@ -542,24 +542,38 @@ export function Contacts() {
       </div>
 
       {/* Pagination */}
-      <div className="mt-6 flex items-center justify-between">
-        <div className="text-sm text-gray-600">
-          {meta ? (
-            <>
-              Showing{" "}
-              <span className="font-medium text-gray-900">
-                {(meta.page - 1) * meta.limit + 1}
-              </span>
-              {" "}to{" "}
-              <span className="font-medium text-gray-900">
-                {Math.min(meta.page * meta.limit, meta.total)}
-              </span>
-              {" "}of{" "}
-              <span className="font-medium text-gray-900">
-                {meta.total.toLocaleString()}
-              </span>{" "}contacts
-            </>
-          ) : "Loading..."}
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-gray-600">
+            {meta ? (
+              <>
+                Showing{" "}
+                <span className="font-medium text-gray-900">
+                  {(meta.page - 1) * meta.limit + 1}
+                </span>
+                {" "}to{" "}
+                <span className="font-medium text-gray-900">
+                  {Math.min(meta.page * meta.limit, meta.total)}
+                </span>
+                {" "}of{" "}
+                <span className="font-medium text-gray-900">
+                  {meta.total.toLocaleString()}
+                </span>{" "}contacts
+              </>
+            ) : "Loading..."}
+          </div>
+          <select
+            value={limit}
+            onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+            className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm bg-white appearance-none"
+            style={{ outline: "none" }}
+            title="Rows per page"
+          >
+            <option value={10}>10 / page</option>
+            <option value={50}>50 / page</option>
+            <option value={100}>100 / page</option>
+            <option value={1000}>1000 / page</option>
+          </select>
         </div>
         <div className="flex gap-2">
           <button

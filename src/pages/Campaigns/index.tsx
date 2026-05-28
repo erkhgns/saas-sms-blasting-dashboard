@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Search, MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, MoreVertical, ChevronLeft, ChevronRight, XCircle } from "lucide-react";
 import { useNavigate } from "react-router";
 import { PageHeader, PrimaryButton } from "@/components/common";
 import { formatNumber, BRAND, CAMPAIGN_STATUS_COLORS } from "@/utils";
 import { useCampaigns } from "@/hooks";
 import { campaignsService } from "@/services";
-import { CAMPAIGN_STATUS_LABELS, LOCKED_CAMPAIGN_STATUSES } from "@/types";
+import { CAMPAIGN_STATUS_LABELS, LOCKED_CAMPAIGN_STATUSES, CANCELLABLE_CAMPAIGN_STATUSES } from "@/types";
 import type { Campaign, CampaignStatus } from "@/types";
 
 // ── Status filter options ─────────────────────────────────────────────────────
@@ -17,6 +17,7 @@ const STATUS_OPTIONS: Array<{ label: string; value: CampaignStatus | "" }> = [
   { label: "In Progress",  value: "IN_PROGRESS" },
   { label: "Sent",         value: "SENT" },
   { label: "Failed",       value: "FAILED" },
+  { label: "Cancelled",    value: "CANCELLED" },
 ];
 
 // ── StatusPill ────────────────────────────────────────────────────────────────
@@ -49,13 +50,16 @@ interface RowMenuProps {
   onLaunch:    (id: string) => void;
   onDelete:    (id: string) => void;
   onDuplicate: (id: string) => void;
+  onCancel:    (id: string) => void;
 }
 
-function RowMenu({ campaign, onLaunch, onDelete, onDuplicate }: RowMenuProps) {
+function RowMenu({ campaign, onLaunch, onDelete, onDuplicate, onCancel }: RowMenuProps) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const isLocked = LOCKED_CAMPAIGN_STATUSES.includes(campaign.status);
+  const isLocked      = LOCKED_CAMPAIGN_STATUSES.includes(campaign.status);
+  const isCancellable = CANCELLABLE_CAMPAIGN_STATUSES.includes(campaign.status);
+  const isCancelled   = campaign.status === "CANCELLED";
 
   useEffect(() => {
     if (!open) return;
@@ -71,6 +75,7 @@ function RowMenu({ campaign, onLaunch, onDelete, onDuplicate }: RowMenuProps) {
 
   const items: MenuItem[] = [
     { label: "View", onClick: () => navigate(`/campaigns/${campaign.id}`) },
+    // Edit only for non-locked, non-cancelled statuses
     ...(!isLocked
       ? [{ label: "Edit", onClick: () => navigate(`/campaigns/${campaign.id}/edit`) }]
       : []),
@@ -80,8 +85,14 @@ function RowMenu({ campaign, onLaunch, onDelete, onDuplicate }: RowMenuProps) {
       : campaign.status === "SCHEDULED"
       ? [{ label: "Launch now (send early)", onClick: () => { setOpen(false); onLaunch(campaign.id); } }]
       : []),
+    // Cancel — only for SCHEDULED or IN_PROGRESS
+    ...(isCancellable
+      ? [{ label: "Cancel campaign", danger: true, onClick: () => { setOpen(false); onCancel(campaign.id); } }]
+      : []),
+    // Duplicate always available (including CANCELLED — creates a fresh DRAFT)
     { label: "Duplicate", onClick: () => { setOpen(false); onDuplicate(campaign.id); } },
-    ...(!isLocked
+    // Delete only for non-locked, non-cancelled campaigns (DRAFT only in practice)
+    ...(!isLocked && !isCancelled
       ? [{ label: "Delete", danger: true, onClick: () => { setOpen(false); onDelete(campaign.id); } }]
       : []),
   ];
@@ -115,6 +126,60 @@ function RowMenu({ campaign, onLaunch, onDelete, onDuplicate }: RowMenuProps) {
   );
 }
 
+// ── CancelCampaignModal ───────────────────────────────────────────────────────
+
+function CancelCampaignModal({
+  campaignName,
+  cancelling,
+  onConfirm,
+  onClose,
+}: {
+  campaignName: string;
+  cancelling: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-sm p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+            <XCircle className="w-5 h-5 text-orange-500" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">Cancel Campaign</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Are you sure you want to cancel{" "}
+              <strong className="text-gray-800">"{campaignName}"</strong>?
+            </p>
+            <p className="text-sm text-gray-400 mt-1">
+              All unsent messages will be stopped immediately. This cannot be undone.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 justify-end pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={cancelling}
+            className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Keep campaign
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={cancelling}
+            className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {cancelling ? "Cancelling…" : "Yes, cancel it"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Campaigns page ────────────────────────────────────────────────────────────
 
 export function Campaigns() {
@@ -123,6 +188,10 @@ export function Campaigns() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | "">("");
   const [page, setPage]               = useState(1);
+
+  // Cancel modal state
+  const [campaignToCancel, setCampaignToCancel] = useState<Campaign | null>(null);
+  const [isCancelling, setIsCancelling]         = useState(false);
   const PAGE_SIZE = 10;
 
   // Debounce search
@@ -142,6 +211,7 @@ export function Campaigns() {
 
   const handleRowClick = useCallback(
     (campaign: Campaign) => {
+      // LOCKED or CANCELLED → view only; everything else → edit
       const isLocked = LOCKED_CAMPAIGN_STATUSES.includes(campaign.status);
       navigate(isLocked ? `/campaigns/${campaign.id}` : `/campaigns/${campaign.id}/edit`);
     },
@@ -185,6 +255,29 @@ export function Campaigns() {
     },
     [refetch]
   );
+
+  const handleCancel = useCallback(
+    (id: string) => {
+      const campaign = campaigns.find((c) => c.id === id) ?? null;
+      setCampaignToCancel(campaign);
+    },
+    [campaigns]
+  );
+
+  const handleCancelConfirm = useCallback(async () => {
+    if (!campaignToCancel) return;
+    setIsCancelling(true);
+    try {
+      await campaignsService.cancel(campaignToCancel.id);
+      setCampaignToCancel(null);
+      refetch();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to cancel campaign.";
+      alert(msg); // TODO: replace with inline error inside modal
+    } finally {
+      setIsCancelling(false);
+    }
+  }, [campaignToCancel, refetch]);
 
   return (
     <div className="p-4 sm:p-8">
@@ -318,6 +411,7 @@ export function Campaigns() {
                         onLaunch={handleLaunch}
                         onDelete={handleDelete}
                         onDuplicate={handleDuplicate}
+                        onCancel={handleCancel}
                       />
                     </td>
                   </tr>
@@ -327,6 +421,16 @@ export function Campaigns() {
           </tbody>
         </table>
       </div>
+
+      {/* Cancel confirmation modal */}
+      {campaignToCancel && (
+        <CancelCampaignModal
+          campaignName={campaignToCancel.name}
+          cancelling={isCancelling}
+          onConfirm={handleCancelConfirm}
+          onClose={() => setCampaignToCancel(null)}
+        />
+      )}
 
       {/* Pagination */}
       <div className="mt-6 flex items-center justify-between">

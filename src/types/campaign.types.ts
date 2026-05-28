@@ -4,7 +4,8 @@ export type CampaignStatus =
   | "SCHEDULED"
   | "IN_PROGRESS"
   | "SENT"
-  | "FAILED";
+  | "FAILED"
+  | "CANCELLED";
 
 /** Map API enum → human display label. Always use this at the render layer. */
 export const CAMPAIGN_STATUS_LABELS: Record<CampaignStatus, string> = {
@@ -13,12 +14,21 @@ export const CAMPAIGN_STATUS_LABELS: Record<CampaignStatus, string> = {
   IN_PROGRESS: "In Progress",
   SENT:        "Sent",
   FAILED:      "Failed",
+  CANCELLED:   "Cancelled",
 };
 
+/** Statuses that prevent editing — campaign is read-only. */
 export const LOCKED_CAMPAIGN_STATUSES: CampaignStatus[] = [
   "IN_PROGRESS",
   "SENT",
   "FAILED",
+  "CANCELLED",
+];
+
+/** Statuses that can be cancelled via POST /campaigns/:id/cancel. */
+export const CANCELLABLE_CAMPAIGN_STATUSES: CampaignStatus[] = [
+  "SCHEDULED",
+  "IN_PROGRESS",
 ];
 
 // ── Priority (API uses 0 | 1 | 2) ────────────────────────────────────────────

@@ -13,9 +13,10 @@ type PriorityFilter = "all" | "0" | "1" | "2";
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function StatusIcon({ status }: { status: SmsStatus }) {
-  if (status === "PENDING") return <Clock className="w-3 h-3" />;
-  if (status === "SENT")    return <CheckCircle2 className="w-3 h-3" />;
-  if (status === "FAILED")  return <XCircle className="w-3 h-3" />;
+  if (status === "PENDING")   return <Clock className="w-3 h-3" />;
+  if (status === "SENT")      return <CheckCircle2 className="w-3 h-3" />;
+  if (status === "FAILED")    return <XCircle className="w-3 h-3" />;
+  if (status === "CANCELLED") return <XCircle className="w-3 h-3" />;
   return null;
 }
 
@@ -187,6 +188,38 @@ function RecipientCell({
         )}
       </div>
     </div>
+  );
+}
+
+// ── MessageCell ───────────────────────────────────────────────────────────────
+
+function MessageCell({ content }: { content: string }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+
+  return (
+    <>
+      <div
+        className="text-gray-900 truncate text-sm cursor-default select-none"
+        onMouseEnter={(e) => setPos({ x: e.clientX, y: e.clientY })}
+        onMouseMove={(e)  => setPos({ x: e.clientX, y: e.clientY })}
+        onMouseLeave={() => setPos(null)}
+      >
+        {content}
+      </div>
+
+      {pos && (
+        <div
+          className="fixed z-50 max-w-sm w-max bg-gray-900 text-white text-xs rounded-xl px-3.5 py-2.5 shadow-xl whitespace-pre-wrap break-words pointer-events-none leading-relaxed"
+          style={{
+            left: pos.x + 14,
+            top:  pos.y - 10,
+            transform: "translateY(-100%)",
+          }}
+        >
+          {content}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -374,6 +407,7 @@ export function Logs() {
             <option value="PENDING">Pending</option>
             <option value="SENT">Sent</option>
             <option value="FAILED">Failed</option>
+            <option value="CANCELLED">Cancelled</option>
           </select>
 
           {/* Priority */}
@@ -493,7 +527,7 @@ export function Logs() {
                     </td>
 
                     <td className="px-6 py-4 max-w-xs">
-                      <div className="text-gray-900 truncate text-sm">{log.content}</div>
+                      <MessageCell content={log.content} />
                     </td>
 
                     <td className="px-6 py-4">
@@ -522,9 +556,9 @@ export function Logs() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleResend(log.id, log.content, log.receiver)}
-                          disabled={resendingId === log.id}
+                          disabled={resendingId === log.id || log.status === "CANCELLED"}
                           className="p-2 hover:bg-gray-100 rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Resend"
+                          title={log.status === "CANCELLED" ? "Cannot resend a cancelled message" : "Resend"}
                         >
                           <RefreshCw className={`w-4 h-4 text-gray-500 group-hover:text-gray-700 ${resendingId === log.id ? "animate-spin" : ""}`} />
                         </button>
