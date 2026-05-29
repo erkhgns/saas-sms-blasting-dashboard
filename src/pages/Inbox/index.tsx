@@ -3,9 +3,12 @@ import { Search, Send, MessageSquare, Loader2, UserPlus, X, Check } from "lucide
 import { AvatarInitials, PrimaryButton } from "@/components/common";
 import { BRAND } from "@/utils";
 import { useInbox, useConversation } from "@/hooks";
+import { useTags } from "@/hooks/useTags";
 import { inboxService, messagesService, contactsService } from "@/services";
 import { authStore } from "@/utils/auth.store";
 import type { InboxThread } from "@/types";
+import { ThreadTagsRow } from "./ThreadTagsRow";
+import { ConversationTagBar } from "./ConversationTagBar";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -213,10 +216,11 @@ function SaveContactModal({ phone, senderId, onClose, onSaved }: SaveContactModa
 interface ThreadItemProps {
   thread: InboxThread;
   selected: boolean;
+  allTags: import("@/types").Tag[];
   onClick: () => void;
 }
 
-function ThreadItem({ thread, selected, onClick }: ThreadItemProps) {
+function ThreadItem({ thread, selected, allTags, onClick }: ThreadItemProps) {
   const name = displayName(thread);
   return (
     <button
@@ -238,6 +242,9 @@ function ThreadItem({ thread, selected, onClick }: ThreadItemProps) {
         <div className={`text-sm truncate ${thread.unreadCount > 0 ? "text-gray-900 font-medium" : "text-gray-500"}`}>
           {thread.lastMessage.content}
         </div>
+        {thread.contact && thread.contact.tags.length > 0 && (
+          <ThreadTagsRow tagNames={thread.contact.tags} allTags={allTags} />
+        )}
       </div>
       {thread.unreadCount > 0 && (
         <div
@@ -263,9 +270,21 @@ export function Inbox() {
   const [sendError, setSendError]         = useState<string | null>(null);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const messagesEndRef                    = useRef<HTMLDivElement>(null);
+  const sentinelRef                       = useRef<HTMLDivElement>(null);
 
-  const { threads, meta, loading: threadsLoading, error: threadsError, refetch: refetchInbox } = useInbox();
+  const {
+    threads,
+    meta,
+    loading: threadsLoading,
+    loadingMore,
+    hasMore,
+    error: threadsError,
+    refetch: refetchInbox,
+    loadMore,
+    updateThread,
+  } = useInbox();
   const { messages, loading: msgLoading, refetch: refetchConversation } = useConversation(selectedPhone);
+  const { tags: allTags } = useTags();
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -274,12 +293,30 @@ export function Inbox() {
     }
   }, [messages]);
 
-  // Mark thread as read when opened
+  // Infinite scroll — load next page when sentinel enters view
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loadMore]);
+
+  // Mark thread as read when opened — optimistic local update, no refetch
   useEffect(() => {
     if (!selectedPhone) return;
     const thread = threads.find((t) => t.phone === selectedPhone);
     if (thread && thread.unreadCount > 0) {
-      inboxService.markRead(selectedPhone).then(() => refetchInbox()).catch(() => {/* silent */});
+      updateThread(selectedPhone, { unreadCount: 0 });
+      inboxService.markRead(selectedPhone).catch(() => {/* silent */});
     }
   }, [selectedPhone]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -289,9 +326,20 @@ export function Inbox() {
     return (
       t.phone.includes(q) ||
       (t.contact?.name ?? "").toLowerCase().includes(q) ||
-      t.lastMessage.content.toLowerCase().includes(q)
+      t.lastMessage.content.toLowerCase().includes(q) ||
+      (t.contact?.tags ?? []).some((tag) => tag.toLowerCase().includes(q))
     );
   });
+
+  const handleTagsChange = async (newTags: string[]) => {
+    if (!selectedThread?.contact?.id) return;
+    try {
+      await contactsService.update(selectedThread.contact.id, { tags: newTags });
+      refetchInbox();
+    } catch {
+      // silent — tag bar stays as-is if save fails
+    }
+  };
 
   const handleSelectThread = useCallback((phone: string) => {
     setSelectedPhone(phone);
@@ -389,9 +437,24 @@ export function Inbox() {
               key={thread.phone}
               thread={thread}
               selected={thread.phone === selectedPhone}
+              allTags={allTags}
               onClick={() => handleSelectThread(thread.phone)}
             />
           ))}
+
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} className="h-1" />
+          {loadingMore && (
+            <div className="flex items-center justify-center py-4 text-gray-400">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              <span className="text-xs">Loading more…</span>
+            </div>
+          )}
+          {!hasMore && !threadsLoading && threads.length > 0 && (
+            <div className="py-4 text-center text-xs text-gray-300">
+              All conversations loaded
+            </div>
+          )}
         </div>
       </div>
 
@@ -418,7 +481,7 @@ export function Inbox() {
                 </div>
               </div>
 
-              {/* Save to Contacts — only shown for unknown numbers */}
+              {/* Save to Contacts — shown in header for quick access on unknown numbers */}
               {isUnknownNumber && (
                 <button
                   onClick={() => setSaveModalOpen(true)}
@@ -475,6 +538,14 @@ export function Inbox() {
               })}
               <div ref={messagesEndRef} />
             </div>
+
+            {/* Tag bar */}
+            <ConversationTagBar
+              contact={selectedThread?.contact ?? null}
+              allTags={allTags}
+              onTagsChange={handleTagsChange}
+              onSaveContact={() => setSaveModalOpen(true)}
+            />
 
             {/* Reply input */}
             <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">

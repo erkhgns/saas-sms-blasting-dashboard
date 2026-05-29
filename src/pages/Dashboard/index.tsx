@@ -30,7 +30,7 @@ export function Dashboard() {
   const { campaigns: recentCampaigns, loading: campaignsLoading } = useCampaigns({ pageSize: 4 });
 
   // Recent Replies — latest inbound threads from the Inbox API (limit 4)
-  const { threads, loading: inboxLoading } = useInbox(1, 10);
+  const { threads, loading: inboxLoading } = useInbox();
   const recentReplies = threads.slice(0, 4);
 
   const deliveryRate = (() => {
