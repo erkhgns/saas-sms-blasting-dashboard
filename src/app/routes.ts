@@ -7,6 +7,7 @@ import { SendSMS } from "@/pages/SendSMS";
 import { Campaigns } from "@/pages/Campaigns";
 import { CampaignForm } from "@/pages/CampaignForm";
 import { Contacts } from "@/pages/Contacts";
+import { Automations } from "@/pages/Automations";
 import { Inbox } from "@/pages/Inbox";
 import { Reports } from "@/pages/Reports";
 import { Settings } from "@/pages/Settings";
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
           { path: "campaigns/:id", Component: CampaignFormView },
           { path: "contacts", Component: Contacts },
           { path: "inbox", Component: Inbox },
+          { path: "automations", Component: Automations },
           { path: "reports", Component: Reports },
           { path: "logs", Component: Logs },
           { path: "api-docs", Component: ApiDocs },

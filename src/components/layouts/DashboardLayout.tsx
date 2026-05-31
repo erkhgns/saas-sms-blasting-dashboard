@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router";
 import {
   LayoutDashboard, Send, BarChart3, Users, MessageSquare,
-  FileText, Settings, ChevronDown, ScrollText, LogOut, Menu, Code2,
+  FileText, Settings, ChevronDown, ScrollText, LogOut, Menu, Code2, Zap,
 } from "lucide-react";
 import logoMark from "/logo-mark@2x.png";
 import { BRAND, authStore } from "@/utils";
@@ -14,6 +14,7 @@ const navItems = [
   { path: "/campaigns", label: "Campaigns", icon: BarChart3 },
   { path: "/contacts", label: "Contacts", icon: Users },
   { path: "/inbox", label: "Inbox", icon: MessageSquare },
+  { path: "/automations", label: "Automations", icon: Zap },
   { path: "/reports", label: "Reports", icon: FileText },
   { path: "/logs", label: "SMS Logs", icon: ScrollText },
   { path: "/api-docs", label: "API Docs", icon: Code2 },

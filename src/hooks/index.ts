@@ -1,5 +1,6 @@
 export * from "./useAnalyticsChart";
-export * from "./useAutoReply";
+export * from "./useAutomations";
+export * from "./useAutomationLog";
 export * from "./useCampaigns";
 export * from "./useContactGroups";
 export * from "./useContacts";

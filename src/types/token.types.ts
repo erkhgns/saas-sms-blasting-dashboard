@@ -33,10 +33,18 @@ export interface UpdateTagPayload {
 
 // ─── v2.3.0 API Tokens ───────────────────────────────────────────────────────
 
+/**
+ * Data type for a custom token.
+ * Used by the Conditions Builder to render the correct operator list and value input.
+ * Falls back to "text" at the render layer if the API omits the field.
+ */
+export type TokenDataType = "text" | "number" | "decimal" | "boolean" | "date";
+
 export interface ApiToken {
   id: string;
   key: string;             // snake_case token key, e.g. "cod_value"
   label: string;           // human label, e.g. "COD Amount"
+  type: TokenDataType | null; // data type — null for older tokens created before this field existed
   fallback: string | null; // value used when contact has no customFields[key]
   senderId: string;
   createdAt: string;
@@ -47,11 +55,13 @@ export interface CreateApiTokenPayload {
   senderId: string;
   key: string;
   label: string;
+  type: TokenDataType;     // required — must declare the type on creation
   fallback?: string;       // optional — empty string / omit = no fallback
 }
 
 export interface UpdateApiTokenPayload {
   key?: string;
   label?: string;
+  type?: TokenDataType;
   fallback?: string | null; // null to clear the fallback
 }
