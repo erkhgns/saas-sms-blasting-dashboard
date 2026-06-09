@@ -152,19 +152,29 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
 
     setSaving(true);
     try {
+      // Convert filled form fields → tokenOperations (overwrite op per key).
+      // `customFields` and `tokens` were removed from the API — tokenOperations
+      // is now the only way to write token values.
+      const filledEntries = Object.entries(customFields).filter(
+        ([, v]) => v !== undefined && String(v).trim() !== ""
+      );
+      const tokenOperations =
+        filledEntries.length > 0
+          ? filledEntries.map(([key, value]) => ({
+              key,
+              op: "overwrite" as const,
+              value: String(value),
+            }))
+          : undefined;
+
       if (isCreate) {
-        // Send token values via the `tokens` field — API merges them into
-        // customFields and preserves any existing keys not included here.
-        const filledTokens = Object.fromEntries(
-          Object.entries(customFields).filter(([, v]) => v && String(v).trim())
-        );
         await contactsService.create({
           senderId: authStore.getUser()?.id ?? "",
           name:  name.trim(),
           phone: phone.trim(),
           email: email.trim() || undefined,
           tags,
-          tokens: Object.keys(filledTokens).length > 0 ? filledTokens : undefined,
+          tokenOperations,
         });
       } else {
         await contactsService.update(contact.id, {
@@ -172,7 +182,7 @@ export function EditContactDrawer({ contact, onClose, onSuccess }: EditContactDr
           phone: phone.trim(),
           email: email.trim() || null,
           tags,
-          customFields,
+          tokenOperations,
         });
       }
       onSuccess();

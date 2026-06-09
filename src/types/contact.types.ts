@@ -1,5 +1,28 @@
 export type ContactTag = string;
 
+// ── Token operations ──────────────────────────────────────────────────────────
+
+/**
+ * Atomic mutation for a single personalization token.
+ * Used in the `tokenOperations` field of POST /contacts and PATCH /contacts/:id.
+ *
+ * - overwrite      — set an explicit value (all types)
+ * - increment      — add `value` to current (number / decimal only)
+ * - decrement      — subtract `value` from current (number / decimal only)
+ * - toggle         — flip true↔false (boolean only, no value)
+ * - set_today      — set token to today's date YYYY-MM-DD (date only, no value)
+ * - add_days       — advance date by `value` days (date only)
+ * - subtract_days  — rewind date by `value` days (date only)
+ */
+export type TokenOperation =
+  | { key: string; op: "overwrite";     value: string }
+  | { key: string; op: "increment";     value: string }
+  | { key: string; op: "decrement";     value: string }
+  | { key: string; op: "toggle" }
+  | { key: string; op: "set_today" }
+  | { key: string; op: "add_days";      value: string }
+  | { key: string; op: "subtract_days"; value: string };
+
 export interface Contact {
   id: string;
   name: string;
@@ -40,12 +63,14 @@ export interface CreateContactPayload {
   email?: string;
   tags?: ContactTag[];
   /**
-   * Token key→value pairs. API merges these into customFields — only the
-   * keys you send are updated, unmatched keys on existing contacts are preserved.
-   * Preferred over sending `customFields` directly on POST /contacts.
+   * Ordered list of atomic token mutations to apply on create/upsert.
+   * This is the only supported way to write token/custom field values.
+   * `customFields` and `tokens` have been removed from the API schema.
+   *
+   * Operations are applied left-to-right. For a brand-new contact, operations
+   * like increment/decrement start from 0 if no prior value exists.
    */
-  tokens?: Record<string, string>;
-  customFields?: Record<string, string>;
+  tokenOperations?: TokenOperation[];
 }
 
 export interface UpdateContactPayload {
@@ -54,7 +79,12 @@ export interface UpdateContactPayload {
   email?: string | null;
   tags?: ContactTag[];
   optedOut?: boolean;
-  customFields?: Record<string, string>;
+  /**
+   * Ordered list of atomic token mutations to apply on update.
+   * If omitted, existing token values are untouched.
+   * This is the only supported way to write token/custom field values.
+   */
+  tokenOperations?: TokenOperation[];
 }
 
 export interface BulkDeleteContactsPayload {

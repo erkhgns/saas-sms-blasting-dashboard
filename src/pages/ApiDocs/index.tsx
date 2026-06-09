@@ -12,12 +12,21 @@ interface ResponseDoc {
   body?: string;
 }
 
+interface OperationRow {
+  op: string;
+  description: string;
+  requiresValue: boolean;
+  appliesTo: string;
+}
+
 interface EndpointDoc {
   id: string;
   method: HttpMethod;
   path: string;
   title: string;
   description: string;
+  /** Optional reference table — used to document tokenOperations op types. */
+  operationsTable?: OperationRow[];
   requestUrl: string;
   headers: { key: string; value: string }[];
   requestBody?: string;
@@ -45,7 +54,16 @@ const ENDPOINTS: EndpointDoc[] = [
     method: "POST",
     path: "/contacts",
     title: "Add or Upsert a Contact",
-    description: "Creates a new contact or updates an existing one if the phone number already exists. Token values are merged into customFields — only passed keys are updated.",
+    description: "Creates a new contact or updates an existing one if the phone number already exists (upsert by senderId + phone). Use tokenOperations to write token/custom field values — this is the only supported write path. The customFields and tokens fields have been removed from the schema.",
+    operationsTable: [
+      { op: "overwrite",     description: "Set any token to a specific string value. Works on all token types.",                               requiresValue: true,  appliesTo: "All types"       },
+      { op: "increment",     description: "Add a number to the token's current value. Token must hold a valid number.",                         requiresValue: true,  appliesTo: "number, decimal" },
+      { op: "decrement",     description: "Subtract a number from the token's current value. Token must hold a valid number.",                  requiresValue: true,  appliesTo: "number, decimal" },
+      { op: "toggle",        description: "Flip a boolean token between true and false. No value needed.",                                      requiresValue: false, appliesTo: "boolean"         },
+      { op: "set_today",     description: "Set a date token to today's date in Manila time (YYYY-MM-DD). No value needed.",                     requiresValue: false, appliesTo: "date"            },
+      { op: "add_days",      description: "Advance a date token by N days. value must be a whole-number string (e.g. \"30\").",                 requiresValue: true,  appliesTo: "date"            },
+      { op: "subtract_days", description: "Rewind a date token by N days. value must be a whole-number string (e.g. \"7\").",                   requiresValue: true,  appliesTo: "date"            },
+    ],
     requestUrl: "POST /api/contacts",
     headers: [
       { key: "x-api-key", value: "sk_••••••••••••••••••••" },
@@ -57,26 +75,31 @@ const ENDPOINTS: EndpointDoc[] = [
   "phone": "09171234567",
   "email": "juan@email.com",
   "tags": ["vip", "luzon"],
-  "tokens": {
-    "order_id": "ORD-9981",
-    "promo_code": "SALE50"
-  }
+  "tokenOperations": [
+    { "key": "loyalty_points", "op": "overwrite",  "value": "100" },
+    { "key": "is_member",      "op": "toggle"                     },
+    { "key": "last_purchase",  "op": "set_today"                  }
+  ]
 }`,
     responses: [
       {
         status: "201",
         label: "Created — new contact",
         body: `{
-  "id": "cnt_xyz789",
+  "id": "clxyz1234567890abc",
   "senderId": "cmofogn3500030pqqyoyqs7p8",
   "name": "Juan Dela Cruz",
   "phone": "09171234567",
   "email": "juan@email.com",
   "tags": ["vip", "luzon"],
-  "customFields": { "order_id": "ORD-9981", "promo_code": "SALE50" },
+  "customFields": {
+    "loyalty_points": "100",
+    "is_member": "false",
+    "last_purchase": "2026-06-10"
+  },
   "optedOut": false,
-  "createdAt": "2026-05-20T10:00:00.000Z",
-  "updatedAt": "2026-05-20T10:00:00.000Z",
+  "createdAt": "2026-06-10T08:00:00.000Z",
+  "updatedAt": "2026-06-10T08:00:00.000Z",
   "action": "created"
 }`,
       },
@@ -91,13 +114,13 @@ const ENDPOINTS: EndpointDoc[] = [
   "email": "juan@email.com",
   "tags": ["vip", "luzon"],
   "customFields": {
-    "order_id": "ORD-9981",
-    "promo_code": "SALE50",
-    "loyalty_points": "800"
+    "loyalty_points": "100",
+    "is_member": "false",
+    "last_purchase": "2026-06-09"
   },
   "optedOut": false,
   "createdAt": "2026-05-14T08:00:00.000Z",
-  "updatedAt": "2026-05-20T10:00:00.000Z",
+  "updatedAt": "2026-06-09T10:00:00.000Z",
   "action": "updated"
 }`,
       },
@@ -107,9 +130,90 @@ const ENDPOINTS: EndpointDoc[] = [
         body: `{ "message": "Validation error", "issues": { "phone": ["Invalid PH phone number"] } }`,
       },
       {
+        status: "400",
+        label: "Bad Request — increment/decrement on non-numeric token",
+        body: `{ "message": "Token operation error", "issues": { "loyalty_points": ["Cannot increment a non-numeric value"] } }`,
+      },
+      {
+        status: "400",
+        label: "Bad Request — add_days/subtract_days on invalid date token",
+        body: `{ "message": "Token operation error", "issues": { "next_reminder": ["Cannot add days to an invalid or missing date value"] } }`,
+      },
+      {
+        status: "400",
+        label: "Bad Request — non-integer value for add_days / subtract_days",
+        body: `{ "message": "Token operation error", "issues": { "next_reminder": ["Days value must be a whole number"] } }`,
+      },
+      {
+        status: "400",
+        label: "Bad Request — computed value fails token type validation",
+        body: `{ "message": "Token operation error", "issues": { "score": ["Computed value \\"abc\\" is not valid for type number"] } }`,
+      },
+      {
         status: "401",
         label: "Unauthorized — missing or invalid x-api-key",
         body: `{ "message": "Unauthorized" }`,
+      },
+    ],
+  },
+  {
+    id: "patch-contacts-id",
+    method: "PATCH",
+    path: "/contacts/:id",
+    title: "Update a Contact",
+    description: "Partially update a contact by ID. All fields are optional — only the fields you send are changed. Use tokenOperations to mutate token/custom field values. If tokenOperations is omitted, existing token values are untouched.",
+    requestUrl: "PATCH /api/contacts/cnt_xyz789",
+    headers: [
+      { key: "x-api-key", value: "sk_••••••••••••••••••••" },
+      { key: "Content-Type", value: "application/json" },
+    ],
+    requestBody: `{
+  "name": "Juan Dela Cruz",
+  "tokenOperations": [
+    { "key": "loyalty_points", "op": "increment",     "value": "50"  },
+    { "key": "visit_count",    "op": "increment",     "value": "1"   },
+    { "key": "last_purchase",  "op": "set_today"                     },
+    { "key": "next_reminder",  "op": "add_days",      "value": "30"  },
+    { "key": "is_active",      "op": "toggle"                        }
+  ]
+}`,
+    responses: [
+      {
+        status: "200",
+        label: "OK — contact updated",
+        body: `{
+  "id": "cnt_xyz789",
+  "senderId": "cmofogn3500030pqqyoyqs7p8",
+  "name": "Juan Dela Cruz",
+  "phone": "09171234567",
+  "email": "juan@email.com",
+  "tags": ["vip", "luzon"],
+  "customFields": {
+    "loyalty_points": "850",
+    "visit_count": "12",
+    "last_purchase": "2026-06-09",
+    "next_reminder": "2026-07-09",
+    "is_active": "false"
+  },
+  "optedOut": false,
+  "createdAt": "2026-05-14T08:00:00.000Z",
+  "updatedAt": "2026-06-09T10:00:00.000Z"
+}`,
+      },
+      {
+        status: "400",
+        label: "Bad Request — token operation error",
+        body: `{ "message": "Token operation error", "issues": { "loyalty_points": ["Cannot increment a non-numeric value"] } }`,
+      },
+      {
+        status: "401",
+        label: "Unauthorized — missing or invalid x-api-key",
+        body: `{ "message": "Unauthorized" }`,
+      },
+      {
+        status: "404",
+        label: "Not Found — contact ID does not exist",
+        body: `{ "message": "Contact not found" }`,
       },
     ],
   },
@@ -354,6 +458,53 @@ function EndpointSection({ ep }: { ep: EndpointDoc }) {
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100">
             <p className="text-sm text-gray-600">{ep.description}</p>
           </div>
+
+          {/* Token operations reference table */}
+          {ep.operationsTable && (
+            <div className="px-6 py-5 border-b border-gray-100 bg-white">
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                tokenOperations — Available Operations
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">op</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Requires value?</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Applies to</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {ep.operationsTable.map((row) => (
+                      <tr key={row.op} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 align-top whitespace-nowrap">
+                          <code className="px-2 py-0.5 rounded bg-gray-100 text-[#FF692E] text-xs font-mono font-semibold">
+                            {row.op}
+                          </code>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 align-top">{row.description}</td>
+                        <td className="px-4 py-3 align-top">
+                          {row.requiresValue ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                              Yes
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                              No
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <span className="text-xs font-mono text-gray-500">{row.appliesTo}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <div className="px-6 py-5 space-y-5">
             {/* Request URL */}
