@@ -4,7 +4,7 @@
  * In production, set VITE_APP_URL to your frontend domain so shareable links,
  * QR codes, and copied URLs all show the real address — not localhost.
  *
- *   VITE_APP_URL=https://app.gabysms.com   ← .env or Vercel env var
+ *   VITE_APP_URL=https://www.gabysms.com   ← .env or Vercel env var
  *
  * Falls back to window.location.origin in development (localhost:5173).
  */
