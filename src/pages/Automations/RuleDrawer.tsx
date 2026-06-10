@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X, MessageSquare, RefreshCw, CalendarDays, Plus,
-  ChevronDown, Users, AlertTriangle, Loader2, Info,
+  ChevronDown, Users, AlertTriangle, Loader2, Info, ClipboardList,
 } from "lucide-react";
 import { KeywordChipInput } from "@/components/common";
 import { ToggleSwitch } from "./AutomationAtoms";
 import { ConditionRow } from "./ConditionRow";
 import { ActionBlock } from "./ActionBlock";
 import { automationsService } from "@/services/automations.service";
+import { formsService } from "@/services/forms.service";
+import type { GabyForm } from "@/types";
 import { AUTOMATION_FREQUENCY_OPTIONS, defaultFrequencyFor, emptyAutomationForm } from "@/types";
 import {
   localId,
@@ -48,10 +50,85 @@ interface RuleDrawerProps {
 // ── Trigger icon map ──────────────────────────────────────────────────────────
 
 const TRIGGER_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  message:  MessageSquare,
-  refresh:  RefreshCw,
-  calendar: CalendarDays,
+  message:   MessageSquare,
+  refresh:   RefreshCw,
+  calendar:  CalendarDays,
+  clipboard: ClipboardList,
 };
+
+// ── FORM_SUBMITTED — form selector config ─────────────────────────────────────
+
+function FormSubmittedConfig({
+  formId,
+  onChange,
+}: {
+  formId: string | null;
+  onChange: (id: string | null) => void;
+}) {
+  const [forms,   setForms]   = useState<GabyForm[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stale,   setStale]   = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    formsService
+      .getForms()
+      .then((data) => {
+        setForms(data);
+        // If the saved formId no longer exists in the list, warn and reset
+        if (formId && formId !== "ANY" && !data.some((f) => f.id === formId)) {
+          setStale(true);
+          onChange(null);
+        }
+      })
+      .catch(() => setForms([]))
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="mt-3">
+      <label className="block text-xs font-medium text-gray-600 mb-1.5">
+        Which form? <span className="text-gray-400 font-normal">(optional)</span>
+      </label>
+      {stale && (
+        <div className="mb-2 flex items-center gap-1.5 text-xs text-amber-600">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+          The previously selected form was deleted. Defaulted to "Any form".
+        </div>
+      )}
+      {loading ? (
+        <div className="flex items-center gap-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-400">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Loading forms…
+        </div>
+      ) : forms.length === 0 ? (
+        <div className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500">
+          No forms created yet.{" "}
+          <a href="/forms" className="text-[#FF692E] hover:underline font-medium">
+            Create a form →
+          </a>
+        </div>
+      ) : (
+        <select
+          value={formId ?? "ANY"}
+          onChange={(e) => onChange(e.target.value === "ANY" ? null : e.target.value)}
+          className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm outline-none bg-white focus:border-[#FF692E] focus:ring-2 focus:ring-[#FF692E]/20"
+        >
+          <option value="ANY">Any form</option>
+          {forms.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+      )}
+      <p className="text-xs text-gray-400 mt-1">
+        Select a specific form, or leave as "Any form" to trigger on all form submissions.
+      </p>
+    </div>
+  );
+}
 
 // ── Drawer ────────────────────────────────────────────────────────────────────
 
@@ -519,6 +596,13 @@ export function RuleDrawer({
                   conditions below. At least one condition is required.
                 </div>
               </div>
+            )}
+
+            {form.triggerType === "FORM_SUBMITTED" && (
+              <FormSubmittedConfig
+                formId={form.formId}
+                onChange={(id) => { patch({ formId: id }); }}
+              />
             )}
           </div>
 

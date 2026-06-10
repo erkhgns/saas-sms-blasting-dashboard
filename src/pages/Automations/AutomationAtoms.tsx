@@ -3,7 +3,7 @@
  * Used by both RulesTab and LogTab (and the drawer in Phase 5).
  */
 import {
-  MessageSquare, RefreshCw, CalendarDays,
+  MessageSquare, RefreshCw, CalendarDays, ClipboardList,
   Tag, UserX, Minus,
 } from "lucide-react";
 import type { TriggerType, AutomationAction, AutomationFrequency } from "@/types";
@@ -29,6 +29,11 @@ const TRIGGER_BADGE: Record<
     cls:   "bg-orange-50 text-orange-700 border-orange-200",
     label: "Scheduled",
     Icon:  CalendarDays,
+  },
+  FORM_SUBMITTED: {
+    cls:   "bg-teal-50 text-teal-700 border-teal-200",
+    label: "Form Submitted",
+    Icon:  ClipboardList,
   },
 };
 

@@ -1,5 +1,6 @@
 export * from "./useAnalyticsChart";
 export * from "./useAutomations";
+export * from "./useForms";
 export * from "./useAutomationLog";
 export * from "./useCampaigns";
 export * from "./useContactGroups";

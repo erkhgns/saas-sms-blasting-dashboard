@@ -2,6 +2,7 @@ export * from "./analytics.types";
 export * from "./automation.types";
 export * from "./campaign.types";
 export * from "./contact.types";
+export * from "./form.types";
 export * from "./inbox.types";
 export * from "./message.types";
 export * from "./report.types";

@@ -134,6 +134,7 @@ export function ruleToForm(rule: AutomationRule): AutomationFormState {
     triggerType: rule.triggerType,
     keywords:    Array.isArray(config.keywords) ? (config.keywords as string[]) : [],
     tokenKey:    typeof config.tokenKey === "string" ? config.tokenKey : null,
+    formId:      typeof config.formId === "string"   ? config.formId   : null,
     conditions:  rule.conditions.map(conditionToRow),
     actions:     rule.actions.map(actionToRow),
     frequency:   rule.frequency,
@@ -144,6 +145,7 @@ export function ruleToForm(rule: AutomationRule): AutomationFormState {
 export function formToTriggerConfig(form: AutomationFormState): TriggerConfig {
   if (form.triggerType === "INBOUND_MESSAGE") return { keywords: form.keywords };
   if (form.triggerType === "TOKEN_UPDATED")   return { tokenKey: form.tokenKey! };
+  if (form.triggerType === "FORM_SUBMITTED")  return { formId: form.formId };
   return {};
 }
 
@@ -292,5 +294,11 @@ export const TRIGGER_CARDS: {
     label: "Scheduled",
     description: "Runs once daily at 8:00 AM PH Time based on conditions.",
     icon: "calendar",
+  },
+  {
+    value: "FORM_SUBMITTED",
+    label: "Form Submitted",
+    description: "When a customer submits one of your Gaby Forms.",
+    icon: "clipboard",
   },
 ];

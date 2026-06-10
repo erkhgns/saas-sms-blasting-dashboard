@@ -3,6 +3,8 @@ export * from "./automations.service";
 export * from "./analytics.service";
 export * from "./campaigns.service";
 export * from "./contacts.service";
+export * from "./forms.service";
+export * from "./public-form.service";
 export * from "./inbox.service";
 export * from "./messages.service";
 export * from "./reports.service";

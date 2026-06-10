@@ -1,6 +1,6 @@
 // ── Enums / unions ────────────────────────────────────────────────────────────
 
-export type TriggerType = "INBOUND_MESSAGE" | "TOKEN_UPDATED" | "SCHEDULED";
+export type TriggerType = "INBOUND_MESSAGE" | "TOKEN_UPDATED" | "SCHEDULED" | "FORM_SUBMITTED";
 
 export type AutomationFrequency =
   | "EVERY_TIME"
@@ -47,9 +47,10 @@ export type AutomationAction =
 // ── API shapes — trigger config ───────────────────────────────────────────────
 
 export type TriggerConfig =
-  | { keywords: string[] }       // INBOUND_MESSAGE
-  | { tokenKey: string }         // TOKEN_UPDATED
-  | Record<string, never>;       // SCHEDULED (empty object)
+  | { keywords: string[] }           // INBOUND_MESSAGE
+  | { tokenKey: string }             // TOKEN_UPDATED
+  | Record<string, never>            // SCHEDULED (empty object)
+  | { formId: string | null };       // FORM_SUBMITTED (null = any form)
 
 // ── Core model ────────────────────────────────────────────────────────────────
 
@@ -193,6 +194,7 @@ export interface AutomationFormState {
   triggerType: TriggerType | null;
   keywords: string[];           // INBOUND_MESSAGE trigger config
   tokenKey: string | null;      // TOKEN_UPDATED trigger config
+  formId: string | null;        // FORM_SUBMITTED trigger config (null = any form)
   conditions: ConditionFormRow[];
   actions: ActionFormRow[];
   frequency: AutomationFrequency;
@@ -205,6 +207,7 @@ export const TRIGGER_TYPE_LABELS: Record<TriggerType, string> = {
   INBOUND_MESSAGE: "Inbound Message",
   TOKEN_UPDATED:   "Token Updated",
   SCHEDULED:       "Scheduled",
+  FORM_SUBMITTED:  "Form Submitted",
 };
 
 export const AUTOMATION_FREQUENCY_LABELS: Record<AutomationFrequency, string> = {
@@ -275,6 +278,7 @@ export function emptyAutomationForm(): AutomationFormState {
     triggerType: null,
     keywords: [],
     tokenKey: null,
+    formId: null,
     conditions: [],
     actions: [],
     frequency: "EVERY_TIME",
@@ -286,5 +290,6 @@ export function emptyAutomationForm(): AutomationFormState {
 export function defaultFrequencyFor(trigger: TriggerType): AutomationFrequency {
   if (trigger === "INBOUND_MESSAGE") return "EVERY_TIME";
   if (trigger === "TOKEN_UPDATED")   return "ONCE_PER_CONTACT";
+  if (trigger === "FORM_SUBMITTED")  return "ONCE_PER_CONTACT";
   return "ONCE_PER_24H"; // SCHEDULED
 }

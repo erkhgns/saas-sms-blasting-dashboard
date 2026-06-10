@@ -8,6 +8,8 @@ import { Campaigns } from "@/pages/Campaigns";
 import { CampaignForm } from "@/pages/CampaignForm";
 import { Contacts } from "@/pages/Contacts";
 import { Automations } from "@/pages/Automations";
+import { Forms } from "@/pages/Forms";
+import { PublicForm } from "@/pages/PublicForm";
 import { Inbox } from "@/pages/Inbox";
 import { Reports } from "@/pages/Reports";
 import { Settings } from "@/pages/Settings";
@@ -22,6 +24,10 @@ function CampaignFormView()   { return CampaignForm({ mode: "view" }); }
 
 export const router = createBrowserRouter([
   { path: "/login", Component: Login },
+  // Public form — unauthenticated, no dashboard chrome.
+  // /f/:code handles both short codes and custom slugs — same component,
+  // the backend resolves both. Accessible even when logged in.
+  { path: "/f/:code", Component: PublicForm },
   {
     path: "/",
     Component: ProtectedRoute,
@@ -37,6 +43,7 @@ export const router = createBrowserRouter([
           { path: "campaigns/:id", Component: CampaignFormView },
           { path: "contacts", Component: Contacts },
           { path: "inbox", Component: Inbox },
+          { path: "forms", Component: Forms },
           { path: "automations", Component: Automations },
           { path: "reports", Component: Reports },
           { path: "logs", Component: Logs },
