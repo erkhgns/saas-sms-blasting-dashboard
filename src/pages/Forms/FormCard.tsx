@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ExternalLink, QrCode, Pencil, Trash2, Copy, Check } from "lucide-react";
+import { useNavigate } from "react-router";
+import { ExternalLink, QrCode, Pencil, Trash2, Copy, Check, ClipboardList } from "lucide-react";
 import { formPublicUrl, formDisplayUrl } from "@/utils/form-url";
 import type { GabyForm, FormStatus, Tag } from "@/types";
 
@@ -73,6 +74,7 @@ function ToggleSwitch({ checked, onChange, disabled }: { checked: boolean; onCha
 // ── Card ──────────────────────────────────────────────────────────────────────
 
 export function FormCard({ form, tags, togglingId, onEdit, onDelete, onToggle, onQR, onView }: FormCardProps) {
+  const navigate   = useNavigate();
   const active     = form.status === "active";
   const isToggling = togglingId === form.id;
 
@@ -193,6 +195,22 @@ export function FormCard({ form, tags, togglingId, onEdit, onDelete, onToggle, o
         </div>
 
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => navigate(`/forms/${form.id}/submissions`)}
+            title="View submissions"
+            className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            <ClipboardList className="w-4 h-4" />
+            <span className="hidden md:inline">
+              Submissions
+              {form.submissionCount > 0 && (
+                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-[#FF692E]">
+                  {form.submissionCount.toLocaleString()}
+                </span>
+              )}
+            </span>
+          </button>
           <button
             type="button"
             onClick={() => onView(form)}

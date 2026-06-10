@@ -9,6 +9,7 @@ import { CampaignForm } from "@/pages/CampaignForm";
 import { Contacts } from "@/pages/Contacts";
 import { Automations } from "@/pages/Automations";
 import { Forms } from "@/pages/Forms";
+import { FormSubmissions } from "@/pages/Forms/FormSubmissions";
 import { PublicForm } from "@/pages/PublicForm";
 import { Inbox } from "@/pages/Inbox";
 import { Reports } from "@/pages/Reports";
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
           { path: "contacts", Component: Contacts },
           { path: "inbox", Component: Inbox },
           { path: "forms", Component: Forms },
+          { path: "forms/:id/submissions", Component: FormSubmissions },
           { path: "automations", Component: Automations },
           { path: "reports", Component: Reports },
           { path: "logs", Component: Logs },

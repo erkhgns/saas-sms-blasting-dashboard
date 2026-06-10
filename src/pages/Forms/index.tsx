@@ -7,7 +7,7 @@ import { useTags } from "@/hooks/useTags";
 import { FormCard } from "./FormCard";
 import { DeleteFormModal } from "./DeleteFormModal";
 import { QRCodeModal } from "./QRCodeModal";
-import { FormBuilderDrawer } from "./FormBuilderDrawer";
+import { FormEditor } from "./FormEditor";
 import type { GabyForm, FormStatus } from "@/types";
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -34,12 +34,13 @@ export function Forms() {
   const { tags } = useTags();
   const { toasts, push } = useToast();
 
-  // ── Drawer ─────────────────────────────────────────────────────────────────
-  const [drawerOpen,  setDrawerOpen]  = useState(false);
+  // ── Editor view ────────────────────────────────────────────────────────────
+  const [view,        setView]        = useState<"list" | "editor">("list");
   const [editingForm, setEditingForm] = useState<GabyForm | null>(null);
 
-  function openCreate() { setEditingForm(null); setDrawerOpen(true); }
-  function openEdit(f: GabyForm) { setEditingForm(f); setDrawerOpen(true); }
+  function openCreate() { setEditingForm(null); setView("editor"); }
+  function openEdit(f: GabyForm) { setEditingForm(f); setView("editor"); }
+  function handleEditorBack() { setView("list"); setEditingForm(null); }
 
   // ── Delete modal ───────────────────────────────────────────────────────────
   const [deletingForm, setDeletingForm] = useState<GabyForm | null>(null);
@@ -72,13 +73,28 @@ export function Forms() {
     }
   }
 
-  // ── Drawer success ─────────────────────────────────────────────────────────
-  async function handleDrawerSuccess(message: string) {
+  // ── Editor success ─────────────────────────────────────────────────────────
+  async function handleEditorSuccess(message: string) {
     push(message);
     await refetch();
+    setView("list");
+    setEditingForm(null);
   }
 
   const empty = !loading && !error && forms.length === 0;
+
+  // Full-page editor view — fills DashboardLayout's <main className="flex-1 overflow-auto">
+  if (view === "editor") {
+    return (
+      <div className="h-full">
+        <FormEditor
+          form={editingForm}
+          onBack={handleEditorBack}
+          onSuccess={handleEditorSuccess}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl">
@@ -181,14 +197,6 @@ export function Forms() {
       {qrForm && (
         <QRCodeModal form={qrForm} onClose={() => setQrForm(null)} pushToast={push} />
       )}
-
-      {/* Form builder drawer */}
-      <FormBuilderDrawer
-        open={drawerOpen}
-        form={editingForm}
-        onClose={() => setDrawerOpen(false)}
-        onSuccess={handleDrawerSuccess}
-      />
 
       {/* Toast stack */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 items-center pointer-events-none">

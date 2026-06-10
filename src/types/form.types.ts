@@ -4,6 +4,20 @@ import type { TokenDataType } from "./token.types";
 
 export type FormStatus = "active" | "inactive";
 
+// ── Field type ────────────────────────────────────────────────────────────────
+
+/**
+ * How a token-backed custom field is rendered on the public form.
+ * Stored on FormTokenFieldConfig and used by the public renderer.
+ */
+export type FormFieldType =
+  | "text_input"
+  | "multiple_choice"
+  | "dropdown"
+  | "star_rating"
+  | "date_picker"
+  | "yes_no";
+
 // ── Field configs ─────────────────────────────────────────────────────────────
 
 /** Config for a standard configurable form field (birthday / address). */
@@ -17,6 +31,10 @@ export interface FormTokenFieldConfig {
   tokenKey: string;
   label: string;
   type: TokenDataType;
+  /** How the field is rendered on the public form. */
+  fieldType: FormFieldType;
+  /** Selectable options — non-empty only for multiple_choice / dropdown. */
+  choices: string[];
   required: boolean;
 }
 
@@ -74,7 +92,7 @@ export interface FormSubmissionPayload {
   phone: string;
   birthday?: string;   // YYYY-MM-DD, only when birthday field is visible
   address?: string;    // only when address field is visible
-  /** Token field values keyed by tokenKey. Boolean fields send "true"/"false". */
+  /** Token field values keyed by tokenKey. yes_no sends "true"/"false". */
   tokenValues?: Record<string, string>;
   consentGiven: boolean;
 }
@@ -83,13 +101,16 @@ export interface FormSubmissionPayload {
 
 /**
  * A token field entry in a create/update payload.
- * label and type must be supplied — the API uses them to render the field
- * on the public form without needing a separate token lookup.
+ * label, type, fieldType, and choices must all be supplied — the API uses
+ * them to render the field on the public form without a separate token lookup.
  */
 export interface FormTokenFieldPayload {
   tokenKey: string;
   label: string;
   type: TokenDataType;
+  fieldType: FormFieldType;
+  /** Required and non-empty for multiple_choice / dropdown; [] for all others. */
+  choices: string[];
   required: boolean;
 }
 
@@ -127,10 +148,39 @@ export interface SlugCheckResponse {
   available: boolean;
 }
 
+// ── Submission history ────────────────────────────────────────────────────────
+
+export interface FormSubmission {
+  id: string;
+  submittedAt: string;
+  phone: string;
+  payload: {
+    name: string;
+    phone: string;
+    birthday?: string;
+    address?: string | null;
+    tokenValues: Record<string, string | number>;
+    consentGiven: boolean;
+  };
+}
+
+export interface SubmissionsResponse {
+  data: FormSubmission[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface SubmissionsExportParams {
+  startDate?: string;
+  endDate?: string;
+}
+
 // ── Local builder state (never sent directly to API) ──────────────────────────
 
 /**
- * Full local form state used inside FormBuilderDrawer.
+ * Full local form state used inside FormEditor.
  * Converted to CreateFormPayload / UpdateFormPayload on save.
  */
 export interface FormBuilderState {
@@ -143,12 +193,17 @@ export interface FormBuilderState {
     birthday: FormFieldConfig;
     address: FormFieldConfig;
   };
-  /** Ordered list of token keys included in the form + their required flags. */
-  tokenFields: { tokenKey: string; required: boolean }[];
+  /** Ordered list of token fields included in the form — fieldType & choices stored locally. */
+  tokenFields: {
+    tokenKey: string;
+    fieldType: FormFieldType;
+    choices: string[];
+    required: boolean;
+  }[];
   defaultTagIds: string[];
 }
 
-/** Returns a blank form builder state for the "Create form" drawer. */
+/** Returns a blank form builder state for the "Create form" editor. */
 export function emptyFormBuilder(): FormBuilderState {
   return {
     name: "",
@@ -170,4 +225,13 @@ export function emptyFormBuilder(): FormBuilderState {
 export const FORM_STATUS_LABELS: Record<FormStatus, string> = {
   active:   "Active",
   inactive: "Inactive",
+};
+
+export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
+  text_input:       "Text Input",
+  multiple_choice:  "Multiple Choice",
+  dropdown:         "Dropdown",
+  star_rating:      "Star Rating",
+  date_picker:      "Date Picker",
+  yes_no:           "Yes / No",
 };

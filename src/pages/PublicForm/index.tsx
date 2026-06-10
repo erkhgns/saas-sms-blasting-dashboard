@@ -194,16 +194,31 @@ export function PublicForm() {
     }
 
     (config?.tokenFields ?? []).forEach((tf) => {
-      const v = vals[tf.tokenKey];
-      if (tf.required && (v == null || String(v).trim() === "")) {
-        e[tf.tokenKey] = `Please complete ${tf.label}.`;
-      } else if (
-        (tf.type === "number" || tf.type === "decimal") &&
-        v != null &&
-        String(v).trim() !== "" &&
-        isNaN(Number(v))
-      ) {
-        e[tf.tokenKey] = "Numbers only.";
+      const v   = vals[tf.tokenKey];
+      const filled = v != null && String(v).trim() !== "";
+      switch (tf.fieldType) {
+        case "star_rating":
+          if (tf.required && !filled) e[tf.tokenKey] = "Please select a rating.";
+          break;
+        case "multiple_choice":
+        case "dropdown":
+          if (tf.required && !filled) e[tf.tokenKey] = "Please select an option.";
+          break;
+        case "yes_no":
+          if (tf.required && !filled) e[tf.tokenKey] = `Please answer ${tf.label}.`;
+          break;
+        case "date_picker":
+          if (tf.required && !filled) e[tf.tokenKey] = `Please enter ${tf.label}.`;
+          break;
+        default: // text_input
+          if (tf.required && !filled) {
+            e[tf.tokenKey] = `Please complete ${tf.label}.`;
+          } else if (
+            (tf.type === "number" || tf.type === "decimal") &&
+            filled && isNaN(Number(v))
+          ) {
+            e[tf.tokenKey] = "Numbers only.";
+          }
       }
     });
 
@@ -226,12 +241,12 @@ export function PublicForm() {
     setPhase("submitting");
     setSubmitErr(null);
 
-    // Build token values (convert boolean Yes/No → true/false)
+    // Build token values — yes_no: convert "Yes"/"No" → "true"/"false"
     const tokenValues: Record<string, string> = {};
     (config?.tokenFields ?? []).forEach((tf) => {
       const v = vals[tf.tokenKey];
       if (v !== undefined && String(v).trim() !== "") {
-        tokenValues[tf.tokenKey] = tf.type === "boolean"
+        tokenValues[tf.tokenKey] = tf.fieldType === "yes_no"
           ? (v === "Yes" ? "true" : "false")
           : v;
       }
@@ -368,7 +383,7 @@ export function PublicForm() {
           </div>
         )}
 
-        {/* Token fields */}
+        {/* Token fields — rendered by fieldType */}
         {config.tokenFields.map((tf) => (
           <div
             key={tf.tokenKey}
@@ -380,7 +395,8 @@ export function PublicForm() {
               optional={!tf.required}
               error={errs[tf.tokenKey]}
             >
-              {tf.type === "boolean" ? (
+              {tf.fieldType === "yes_no" ? (
+                /* Yes / No */
                 <div className="flex gap-2">
                   {["Yes", "No"].map((opt) => {
                     const active = vals[tf.tokenKey] === opt;
@@ -401,7 +417,8 @@ export function PublicForm() {
                     );
                   })}
                 </div>
-              ) : tf.type === "date" ? (
+              ) : tf.fieldType === "date_picker" ? (
+                /* Date picker */
                 <input
                   type="date"
                   value={vals[tf.tokenKey] ?? ""}
@@ -410,7 +427,74 @@ export function PublicForm() {
                   onFocus={(e) => focusRing(e, true)}
                   onBlur={(e)  => focusRing(e, false)}
                 />
+              ) : tf.fieldType === "star_rating" ? (
+                /* Star rating */
+                <div className="flex gap-1.5">
+                  {[1,2,3,4,5].map((star) => {
+                    const selected = Number(vals[tf.tokenKey] ?? 0) >= star;
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => set(tf.tokenKey, String(star))}
+                        className="text-3xl leading-none transition-colors select-none"
+                        style={{ color: selected ? ACCENT : "#d1d5db" }}
+                        aria-label={`${star} star${star !== 1 ? "s" : ""}`}
+                      >
+                        ★
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : tf.fieldType === "multiple_choice" ? (
+                /* Radio group */
+                <div className="space-y-2">
+                  {tf.choices.map((choice) => {
+                    const active = vals[tf.tokenKey] === choice;
+                    return (
+                      <button
+                        key={choice}
+                        type="button"
+                        onClick={() => set(tf.tokenKey, choice)}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left text-[15px] transition-colors"
+                        style={
+                          active
+                            ? { borderColor: ACCENT, backgroundColor: ACCENT + "0D", color: "#111827" }
+                            : { borderColor: "#d1d5db", backgroundColor: "#fff", color: "#374151" }
+                        }
+                      >
+                        <span
+                          className="w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center"
+                          style={{ borderColor: active ? ACCENT : "#9ca3af" }}
+                        >
+                          {active && (
+                            <span
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: ACCENT }}
+                            />
+                          )}
+                        </span>
+                        {choice}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : tf.fieldType === "dropdown" ? (
+                /* Select */
+                <select
+                  value={vals[tf.tokenKey] ?? ""}
+                  onChange={(e) => set(tf.tokenKey, e.target.value)}
+                  className={`${fieldCls(tf.tokenKey)} cursor-pointer`}
+                  onFocus={(e) => focusRing(e as unknown as React.FocusEvent<HTMLInputElement>, true)}
+                  onBlur={(e)  => focusRing(e as unknown as React.FocusEvent<HTMLInputElement>, false)}
+                >
+                  <option value="" disabled>Select an option</option>
+                  {tf.choices.map((choice) => (
+                    <option key={choice} value={choice}>{choice}</option>
+                  ))}
+                </select>
               ) : tf.type === "number" || tf.type === "decimal" ? (
+                /* Numeric text_input */
                 <input
                   type="text"
                   inputMode="numeric"
@@ -422,6 +506,7 @@ export function PublicForm() {
                   onBlur={(e)  => focusRing(e, false)}
                 />
               ) : (
+                /* text_input (text) */
                 <input
                   type="text"
                   value={vals[tf.tokenKey] ?? ""}
