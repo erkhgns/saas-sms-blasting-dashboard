@@ -75,6 +75,12 @@ export interface Campaign {
   senderId: string;
   createdAt: string;
   updatedAt: string;
+  /** Whether the daily sending window restriction is active */
+  windowEnabled: boolean;
+  /** Window opens at this local time — HH:mm 24-hour, null when windowEnabled is false */
+  windowStart: string | null;
+  /** Window closes at this local time — HH:mm 24-hour, null when windowEnabled is false */
+  windowEnd: string | null;
 }
 
 // ── API payloads ──────────────────────────────────────────────────────────────
@@ -91,6 +97,9 @@ export interface CreateCampaignPayload {
   excludeGroups?: string[];
   excludeNumbers?: string[];
   scheduledAt?: string | null;
+  windowEnabled?: boolean;
+  windowStart?: string | null;
+  windowEnd?: string | null;
 }
 
 export type UpdateCampaignPayload = Partial<Omit<CreateCampaignPayload, "senderId">>;
@@ -136,6 +145,12 @@ export interface CampaignFormState {
   scheduledDate: string;
   /** HH:mm */
   scheduledTime: string;
+  /** Whether the daily sending window restriction is active */
+  windowEnabled: boolean;
+  /** HH:mm 24-hour — empty string when not set */
+  windowStart: string;
+  /** HH:mm 24-hour — empty string when not set */
+  windowEnd: string;
   // View/edit read-back fields
   recipients?: number;
   sent?: number;
@@ -161,6 +176,9 @@ export function emptyCampaignForm(): CampaignFormState {
     sendNow: true,
     scheduledDate: "",
     scheduledTime: "",
+    windowEnabled: false,
+    windowStart: "",
+    windowEnd: "",
   };
 }
 

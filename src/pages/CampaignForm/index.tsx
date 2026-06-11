@@ -28,6 +28,28 @@ import type {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/** Convert a 24-hour HH:mm string to a 12-hour display string, e.g. "09:00" → "9:00 AM". */
+function to12h(hhmm: string): string {
+  if (!hhmm) return "";
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+/**
+ * Returns true when `time` (HH:mm) falls inside the sending window [start, end).
+ * Handles overnight windows where start > end (e.g. 22:00 – 06:00).
+ */
+function isInSendingWindow(time: string, start: string, end: string): boolean {
+  if (!time || !start || !end || start === end) return true; // can't determine → no conflict
+  if (start > end) {
+    // Overnight: window spans midnight, e.g. 22:00 – 06:00
+    return time >= start || time < end;
+  }
+  return time >= start && time < end;
+}
+
 /** Format a total-seconds value into a human-readable duration string. */
 function formatEstimatedTime(totalSeconds: number): string {
   if (totalSeconds <= 0) return "—";
@@ -826,6 +848,94 @@ function StepScheduleOrPerformance({
         Scheduled campaigns are automatically sent when their time arrives — no
         manual action needed. To send early, use "Launch now" from the campaign list.
       </p>
+
+      {/* ── Sending window ── */}
+      <div className="mt-6 border-t border-gray-100 pt-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium text-gray-900">Restrict sending hours</div>
+            <div className="text-xs text-gray-500 mt-0.5">
+              Only dispatch messages within a set daily time window
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={readonly}
+            onClick={() => onChange("windowEnabled", !form.windowEnabled)}
+            aria-pressed={form.windowEnabled}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+              readonly ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+            }`}
+            style={{ backgroundColor: form.windowEnabled ? BRAND.primary : "#D1D5DB" }}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                form.windowEnabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+
+        {form.windowEnabled && (
+          <>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div>
+                <FieldLabel>Window opens at</FieldLabel>
+                <input
+                  type="time"
+                  value={form.windowStart}
+                  readOnly={readonly}
+                  onChange={(e) => onChange("windowStart", e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <FieldLabel>Window closes at</FieldLabel>
+                <input
+                  type="time"
+                  value={form.windowEnd}
+                  readOnly={readonly}
+                  onChange={(e) => onChange("windowEnd", e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            {/* Plain-language preview */}
+            {form.windowStart && form.windowEnd && form.windowStart !== form.windowEnd && (
+              <div className="mt-3 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                <Clock className="w-4 h-4 shrink-0 text-blue-500" />
+                <span>
+                  Messages will only be sent between{" "}
+                  <strong>{to12h(form.windowStart)}</strong>
+                  {" – "}
+                  <strong>{to12h(form.windowEnd)}</strong>
+                  {form.windowStart > form.windowEnd && (
+                    <span className="text-blue-600"> (overnight)</span>
+                  )}
+                </span>
+              </div>
+            )}
+
+            {/* Scheduled-time conflict — blocks scheduling, shown in red */}
+            {!form.sendNow &&
+              form.scheduledDate &&
+              form.scheduledTime &&
+              form.windowStart &&
+              form.windowEnd &&
+              form.windowStart !== form.windowEnd &&
+              !isInSendingWindow(form.scheduledTime, form.windowStart, form.windowEnd) && (
+                <div className="mt-2 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                  <span>
+                    The scheduled time ({to12h(form.scheduledTime)}) falls outside the sending
+                    window. Adjust the scheduled time or the window.
+                  </span>
+                </div>
+              )}
+          </>
+        )}
+      </div>
     </SectionCard>
   );
 }
@@ -924,6 +1034,9 @@ function seedForm(c: Campaign): CampaignFormState {
     sendNow:        !scheduledAt,
     scheduledDate,
     scheduledTime,
+    windowEnabled:  c.windowEnabled ?? false,
+    windowStart:    c.windowStart   ?? "",
+    windowEnd:      c.windowEnd     ?? "",
     recipients:     c.recipients,
     sent:           c.sent,
     failed:         c.failed,
@@ -960,6 +1073,10 @@ function buildPayload(
     ...(scheduledAt             ? { scheduledAt }                   : {}),
     ...(form.includeTags.length ? { includeTags: form.includeTags } : {}),
     ...(excluded.length         ? { excludeNumbers: excluded }      : {}),
+    // Sending window
+    windowEnabled: form.windowEnabled,
+    ...(form.windowEnabled && form.windowStart ? { windowStart: form.windowStart } : {}),
+    ...(form.windowEnabled && form.windowEnd   ? { windowEnd:   form.windowEnd   } : {}),
   };
 }
 
@@ -1124,11 +1241,28 @@ export function CampaignForm({ mode }: CampaignFormProps) {
   const validateStep = (s: number): string | null => {
     if (s === 1 && !form.name.trim()) return "Campaign name is required.";
     if (s === 3 && !form.message.trim()) return "Message is required.";
-    if (s === 4 && !form.sendNow) {
-      if (!form.scheduledDate) return "Please select a date.";
-      if (!form.scheduledTime) return "Please select a time.";
-      const scheduled = new Date(`${form.scheduledDate}T${form.scheduledTime}`);
-      if (scheduled <= new Date()) return "Scheduled time must be in the future.";
+    if (s === 4) {
+      if (!form.sendNow) {
+        if (!form.scheduledDate) return "Please select a date.";
+        if (!form.scheduledTime) return "Please select a time.";
+        const scheduled = new Date(`${form.scheduledDate}T${form.scheduledTime}`);
+        if (scheduled <= new Date()) return "Scheduled time must be in the future.";
+      }
+      if (form.windowEnabled) {
+        if (!form.windowStart) return "Please set the window start time.";
+        if (!form.windowEnd)   return "Please set the window end time.";
+        if (form.windowStart === form.windowEnd)
+          return "Window start and end times cannot be the same.";
+        // Scheduled time vs window conflict — blocks launch (API will reject it)
+        if (
+          !form.sendNow &&
+          form.scheduledDate &&
+          form.scheduledTime &&
+          !isInSendingWindow(form.scheduledTime, form.windowStart, form.windowEnd)
+        ) {
+          return `Scheduled time (${to12h(form.scheduledTime)}) falls outside the sending window (${to12h(form.windowStart)} – ${to12h(form.windowEnd)}). Adjust the scheduled time or the window.`;
+        }
+      }
     }
     return null;
   };
@@ -1285,6 +1419,17 @@ export function CampaignForm({ mode }: CampaignFormProps) {
   ];
 
   const isLocked = LOCKED_CAMPAIGN_STATUSES.includes(form.status);
+
+  // True when the scheduled time sits outside the enabled sending window — blocks scheduling
+  const hasWindowConflict =
+    form.windowEnabled &&
+    !form.sendNow &&
+    !!form.scheduledDate &&
+    !!form.scheduledTime &&
+    !!form.windowStart &&
+    !!form.windowEnd &&
+    form.windowStart !== form.windowEnd &&
+    !isInSendingWindow(form.scheduledTime, form.windowStart, form.windowEnd);
 
   return (
     <div className="p-8 max-w-5xl mx-auto pb-0">
@@ -1460,11 +1605,11 @@ export function CampaignForm({ mode }: CampaignFormProps) {
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-6 py-3 text-white font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-60"
+                    disabled={saving || hasWindowConflict}
+                    className="flex items-center gap-2 px-6 py-3 text-white font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     style={{ backgroundColor: BRAND.primary }}
                     onMouseEnter={(e) =>
-                      !saving &&
+                      !saving && !hasWindowConflict &&
                       (e.currentTarget.style.backgroundColor = "#E55829")
                     }
                     onMouseLeave={(e) =>

@@ -248,7 +248,7 @@ export function Logs() {
   const contactCacheRef                 = useRef<Map<string, Contact | null>>(new Map());
 
   // ── API call — all filtering done server-side ────────────────────────────
-  const { logs, meta, loading, error, refetch } = useSmsLogs({
+  const { logs, meta, sendingWindow, loading, error, refetch } = useSmsLogs({
     page,
     limit,
     status:   statusFilter   === "all" ? undefined : statusFilter,
@@ -457,6 +457,27 @@ export function Logs() {
           </div>
         )}
       </div>
+
+      {/* Sending-window paused indicator — shown when PENDING filter is active and windows are closed */}
+      {sendingWindow && sendingWindow.campaignsWithClosedWindows.length > 0 && (
+        <div className="mb-4 space-y-2">
+          {sendingWindow.campaignsWithClosedWindows.map((c) => (
+            <div
+              key={c.campaignId}
+              className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800"
+            >
+              <Clock className="w-4 h-4 shrink-0 text-amber-500" />
+              <span>
+                <strong>{c.campaignName}</strong> messages are paused — currently outside the
+                sending window.{" "}
+                {c.opensAt && (
+                  <span className="text-amber-700">Window reopens at {c.opensAt}.</span>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Error */}
       {error && (

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { messagesService } from "@/services";
 import { authStore } from "@/utils/auth.store";
-import type { SmsRecord, SmsListMeta, SmsStatus } from "@/types";
+import type { SmsRecord, SmsListMeta, SmsStatus, SendingWindowStatus } from "@/types";
 
 interface UseSmsLogsOptions {
   page?:     number;
@@ -14,11 +14,13 @@ interface UseSmsLogsOptions {
 }
 
 interface UseSmsLogsReturn {
-  logs:    SmsRecord[];
-  meta:    SmsListMeta | null;
-  loading: boolean;
-  error:   string | null;
-  refetch: () => void;
+  logs:          SmsRecord[];
+  meta:          SmsListMeta | null;
+  loading:       boolean;
+  error:         string | null;
+  /** Only populated on status=PENDING queries — lists campaigns whose windows are currently closed */
+  sendingWindow: SendingWindowStatus | null;
+  refetch:       () => void;
 }
 
 export function useSmsLogs({
@@ -30,10 +32,11 @@ export function useSmsLogs({
   dateFrom,
   dateTo,
 }: UseSmsLogsOptions = {}): UseSmsLogsReturn {
-  const [logs,    setLogs]    = useState<SmsRecord[]>([]);
-  const [meta,    setMeta]    = useState<SmsListMeta | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
+  const [logs,          setLogs]          = useState<SmsRecord[]>([]);
+  const [meta,          setMeta]          = useState<SmsListMeta | null>(null);
+  const [sendingWindow, setSendingWindow] = useState<SendingWindowStatus | null>(null);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -53,6 +56,7 @@ export function useSmsLogs({
       });
       setLogs(result.data);
       setMeta(result.meta);
+      setSendingWindow(result.sendingWindow ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load SMS logs");
     } finally {
@@ -62,5 +66,5 @@ export function useSmsLogs({
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  return { logs, meta, loading, error, refetch: fetch };
+  return { logs, meta, sendingWindow, loading, error, refetch: fetch };
 }

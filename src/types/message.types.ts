@@ -90,7 +90,20 @@ export interface SmsListMeta {
   totalPages: number;
 }
 
+export interface PausedCampaignWindow {
+  campaignId: string;
+  campaignName: string;
+  /** HH:mm local time when the sending window reopens */
+  opensAt: string;
+}
+
+export interface SendingWindowStatus {
+  campaignsWithClosedWindows: PausedCampaignWindow[];
+}
+
 export interface SmsListResponse {
   data: SmsRecord[];
   meta: SmsListMeta;
+  /** Only present on status=PENDING queries; lists campaigns whose windows are currently closed */
+  sendingWindow?: SendingWindowStatus;
 }

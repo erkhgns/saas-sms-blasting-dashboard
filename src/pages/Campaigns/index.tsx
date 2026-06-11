@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Search, MoreVertical, ChevronLeft, ChevronRight, XCircle } from "lucide-react";
+import { Search, MoreVertical, ChevronLeft, ChevronRight, XCircle, Clock } from "lucide-react";
 import { useNavigate } from "react-router";
 import { PageHeader, PrimaryButton } from "@/components/common";
 import { formatNumber, BRAND, CAMPAIGN_STATUS_COLORS } from "@/utils";
@@ -19,6 +19,27 @@ const STATUS_OPTIONS: Array<{ label: string; value: CampaignStatus | "" }> = [
   { label: "Failed",       value: "FAILED" },
   { label: "Cancelled",    value: "CANCELLED" },
 ];
+
+// ── Sending-window helpers ────────────────────────────────────────────────────
+
+function to12h(hhmm: string): string {
+  if (!hhmm) return "";
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+function WindowBadge({ start, end }: { start: string; end: string }) {
+  const overnight = start > end;
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+      <Clock className="w-3 h-3 shrink-0" />
+      {to12h(start)} – {to12h(end)}
+      {overnight && <span className="text-blue-500 ml-0.5">(overnight)</span>}
+    </span>
+  );
+}
 
 // ── StatusPill ────────────────────────────────────────────────────────────────
 
@@ -396,7 +417,14 @@ export function Campaigns() {
                     onClick={() => handleRowClick(campaign)}
                     className="hover:bg-gray-50 cursor-pointer transition-colors"
                   >
-                    <td className="px-6 py-4 font-medium text-gray-900">{campaign.name}</td>
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-gray-900">{campaign.name}</div>
+                      {campaign.windowEnabled && campaign.windowStart && campaign.windowEnd && (
+                        <div className="mt-1">
+                          <WindowBadge start={campaign.windowStart} end={campaign.windowEnd} />
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <StatusPill status={campaign.status} />
                     </td>
