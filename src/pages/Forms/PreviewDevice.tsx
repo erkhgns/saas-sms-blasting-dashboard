@@ -125,9 +125,6 @@ function MiniPublicForm({ state, tokens, view }: MiniFormProps) {
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
-  const initials = state.name
-    .split(" ").filter(Boolean).map((s) => s[0]).slice(0, 2).join("").toUpperCase() || "?";
-
   const header = (
     <div
       className="px-5 pt-6 pb-5 text-center shrink-0"
@@ -135,8 +132,10 @@ function MiniPublicForm({ state, tokens, view }: MiniFormProps) {
         background: `linear-gradient(160deg, ${ACCENT} 0%, ${ACCENT} 60%, ${shade(ACCENT, -12)} 100%)`,
       }}
     >
-      <div className="w-11 h-11 rounded-xl bg-white/95 mx-auto flex items-center justify-center shadow-sm">
-        <span className="text-sm font-bold" style={{ color: ACCENT }}>{initials}</span>
+      <div className="w-fit mx-auto max-w-[90%] px-3 py-1.5 rounded-lg bg-white/95 flex items-center justify-center shadow-sm">
+        <span className="text-[11px] font-bold truncate" style={{ color: ACCENT }}>
+          {state.name || "Form name"}
+        </span>
       </div>
       {state.headerMessage ? (
         <h1 className="mt-3 text-[13px] font-bold text-white leading-snug line-clamp-2">

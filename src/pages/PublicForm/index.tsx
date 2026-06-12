@@ -56,10 +56,6 @@ function PFField({
 // ── Header band (shared by form + thank-you) ──────────────────────────────────
 
 function FormHeader({ config }: { config: FormPublicConfig }) {
-  // Derive initials from the form name (up to 2 words)
-  const initials = config.name
-    .split(" ").filter(Boolean).map((s) => s[0]).slice(0, 2).join("").toUpperCase();
-
   return (
     <div
       className="px-6 pt-7 pb-6 text-center"
@@ -67,9 +63,9 @@ function FormHeader({ config }: { config: FormPublicConfig }) {
         background: `linear-gradient(160deg, ${ACCENT} 0%, ${ACCENT} 60%, ${shade(ACCENT, -12)} 100%)`,
       }}
     >
-      <div className="w-14 h-14 rounded-2xl bg-white/95 mx-auto flex items-center justify-center shadow-sm">
-        <span className="text-lg font-bold" style={{ color: ACCENT }}>
-          {initials}
+      <div className="w-fit mx-auto max-w-[85%] px-4 py-2 rounded-xl bg-white/95 flex items-center justify-center shadow-sm">
+        <span className="text-base font-bold truncate" style={{ color: ACCENT }}>
+          {config.name}
         </span>
       </div>
       {config.headerMessage ? (
