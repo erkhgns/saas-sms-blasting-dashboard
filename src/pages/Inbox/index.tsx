@@ -4,11 +4,13 @@ import { AvatarInitials, PrimaryButton } from "@/components/common";
 import { BRAND } from "@/utils";
 import { useInbox, useConversation } from "@/hooks";
 import { useTags } from "@/hooks/useTags";
+import { useTokens } from "@/hooks/useTokens";
 import { inboxService, messagesService, contactsService } from "@/services";
 import { authStore } from "@/utils/auth.store";
 import type { InboxThread } from "@/types";
 import { ThreadTagsRow } from "./ThreadTagsRow";
 import { ConversationTagBar } from "./ConversationTagBar";
+import { ConversationTokenBar } from "./ConversationTokenBar";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -264,6 +266,7 @@ export function Inbox() {
   const senderId = authStore.getUser()?.id ?? "";
 
   const [search, setSearch]               = useState("");
+  const [unreadOnly, setUnreadOnly]       = useState(false);
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [replyText, setReplyText]         = useState("");
   const [sending, setSending]             = useState(false);
@@ -282,9 +285,10 @@ export function Inbox() {
     refetch: refetchInbox,
     loadMore,
     updateThread,
-  } = useInbox();
-  const { messages, loading: msgLoading, refetch: refetchConversation } = useConversation(selectedPhone);
+  } = useInbox({ unread: unreadOnly || undefined });
+  const { messages, conversation, loading: msgLoading, refetch: refetchConversation } = useConversation(selectedPhone);
   const { tags: allTags } = useTags();
+  const { tokens } = useTokens();
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -341,6 +345,14 @@ export function Inbox() {
     }
   };
 
+  const handleTokenUpdate = async (key: string, value: string) => {
+    if (!selectedThread?.contact?.id) return;
+    await contactsService.update(selectedThread.contact.id, {
+      tokenOperations: [{ key, op: "overwrite", value }],
+    });
+    refetchConversation(); // refresh so contact.customFields reflects the new value
+  };
+
   const handleSelectThread = useCallback((phone: string) => {
     setSelectedPhone(phone);
     setReplyText("");
@@ -362,7 +374,9 @@ export function Inbox() {
       });
       setReplyText("");
       refetchConversation();
-      refetchInbox();
+      // Delay inbox refresh so the server has time to update thread order
+      // before we re-fetch — without this the sent thread may not bubble to top
+      setTimeout(refetchInbox, 400);
     } catch (err) {
       setSendError(err instanceof Error ? err.message : "Failed to send message.");
     } finally {
@@ -388,30 +402,61 @@ export function Inbox() {
       <div className="w-96 border-r border-gray-200 bg-white flex flex-col">
 
         {/* Header */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-gray-900">Inbox</h2>
-            {meta && meta.unreadThreads > 0 && (
-              <span
-                className="text-xs font-bold text-white px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: BRAND.primary }}
-              >
-                {meta.unreadThreads} unread
-              </span>
-            )}
+        <div className="border-b border-gray-200">
+          <div className="px-4 pt-4 pb-3">
+            <h2 className="font-semibold text-gray-900 mb-3">Inbox</h2>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search conversations..."
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                style={{ outline: "none" }}
+                onFocus={(e) => Object.assign(e.target.style, { borderColor: BRAND.primary, boxShadow: "0 0 0 2px rgba(255,95,31,0.2)" })}
+                onBlur={(e)  => Object.assign(e.target.style, { borderColor: "#d1d5db", boxShadow: "none" })}
+              />
+            </div>
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search conversations..."
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm"
-              style={{ outline: "none" }}
-              onFocus={(e) => Object.assign(e.target.style, { borderColor: BRAND.primary, boxShadow: "0 0 0 2px rgba(255,95,31,0.2)" })}
-              onBlur={(e)  => Object.assign(e.target.style, { borderColor: "#d1d5db", boxShadow: "none" })}
-            />
+
+          {/* All / Unread tabs */}
+          <div className="flex">
+            {([
+              { label: "All",    value: false, count: null },
+              { label: "Unread", value: true,  count: meta?.unreadThreads ?? 0 },
+            ] as const).map(({ label, value, count }) => {
+              const active = unreadOnly === value;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setUnreadOnly(value)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors relative"
+                  style={{ color: active ? BRAND.primary : "#6b7280" }}
+                >
+                  {label}
+                  {!!count && count > 0 && (
+                    <span
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none"
+                      style={
+                        active
+                          ? { backgroundColor: BRAND.primary, color: "#fff" }
+                          : { backgroundColor: "#f3f4f6", color: "#6b7280" }
+                      }
+                    >
+                      {count}
+                    </span>
+                  )}
+                  {active && (
+                    <span
+                      className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full"
+                      style={{ backgroundColor: BRAND.primary }}
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -538,6 +583,13 @@ export function Inbox() {
               })}
               <div ref={messagesEndRef} />
             </div>
+
+            {/* Token values bar — uses conversation contact which includes customFields (CR-01) */}
+            <ConversationTokenBar
+              contact={conversation?.contact ?? null}
+              tokens={tokens}
+              onTokenUpdate={handleTokenUpdate}
+            />
 
             {/* Tag bar */}
             <ConversationTagBar

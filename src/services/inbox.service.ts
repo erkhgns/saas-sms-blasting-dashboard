@@ -3,10 +3,13 @@ import { authStore } from "@/utils/auth.store";
 import type { InboxResponse, ConversationResponse, MarkReadResponse, MarkReadPayload } from "@/types";
 
 export const inboxService = {
-  getInbox: (page = 1, limit = 20): Promise<InboxResponse> => {
+  getInbox: (page = 1, limit = 20, unread?: boolean): Promise<InboxResponse> => {
     const senderId = authStore.getUser()?.id;
     if (!senderId) return Promise.reject(new Error("Not authenticated"));
-    return api.get<InboxResponse>("/inbox", { senderId, page, limit });
+    return api.get<InboxResponse>("/inbox", {
+      senderId, page, limit,
+      ...(unread ? { unread: "true" } : {}),
+    });
   },
 
   getConversation: (phone: string, page = 1, limit = 50): Promise<ConversationResponse> => {

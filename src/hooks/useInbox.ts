@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { inboxService } from "@/services";
 import type { InboxThread, InboxMeta } from "@/types";
 
+interface UseInboxOptions {
+  unread?: boolean;
+}
+
 interface UseInboxResult {
   threads: InboxThread[];
   meta: InboxMeta | null;
@@ -16,7 +20,7 @@ interface UseInboxResult {
 
 const LIMIT = 20;
 
-export function useInbox(): UseInboxResult {
+export function useInbox({ unread }: UseInboxOptions = {}): UseInboxResult {
   const [threads, setThreads]         = useState<InboxThread[]>([]);
   const [meta, setMeta]               = useState<InboxMeta | null>(null);
   const [page, setPage]               = useState(1);
@@ -27,6 +31,18 @@ export function useInbox(): UseInboxResult {
 
   // Only show the full loading state on the very first fetch
   const isInitialLoad = useRef(true);
+
+  // Track unread filter via ref so we can detect changes without adding it to
+  // the main effect's deps (avoids double-fetch when filter + page change together)
+  const unreadRef = useRef(unread);
+  useEffect(() => {
+    if (unreadRef.current !== unread) {
+      unreadRef.current = unread;
+      // Reset to page 1 and force a fresh fetch when the filter flips
+      setPage(1);
+      setTick((t) => t + 1);
+    }
+  }, [unread]);
 
   // Silent background refresh — resets to page 1, keeps list visible
   const refetch = useCallback(() => {
@@ -62,7 +78,7 @@ export function useInbox(): UseInboxResult {
     setError(null);
 
     inboxService
-      .getInbox(page, LIMIT)
+      .getInbox(page, LIMIT, unreadRef.current)
       .then((res) => {
         if (!cancelled) {
           setThreads((prev) => (isFirstPage ? res.data : [...prev, ...res.data]));
