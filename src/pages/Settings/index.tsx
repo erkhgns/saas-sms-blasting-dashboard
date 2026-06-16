@@ -970,8 +970,9 @@ export function Settings() {
     ? `${storedKey.slice(0, 10)}${"•".repeat(32)}`
     : null;
 
-  const [copiedMain, setCopiedMain] = useState(false);
-  const [copyError, setCopyError]   = useState(false);
+  const [copiedMain,     setCopiedMain]     = useState(false);
+  const [copyError,      setCopyError]      = useState(false);
+  const [copiedSenderId, setCopiedSenderId] = useState(false);
 
   const handleCopyMain = async () => {
     const text = storedKey ?? "";
@@ -983,6 +984,15 @@ export function Settings() {
     } else {
       setCopyError(true);
       setTimeout(() => setCopyError(false), 3000);
+    }
+  };
+
+  const handleCopySenderId = async () => {
+    if (!senderId) return;
+    const ok = await copyText(senderId);
+    if (ok) {
+      setCopiedSenderId(true);
+      setTimeout(() => setCopiedSenderId(false), 2000);
     }
   };
 
@@ -1081,6 +1091,42 @@ export function Settings() {
                 <strong className="text-gray-900">Note:</strong> Your API key is generated once upon registration.
                 If you lose access to it, please contact support — we cannot recover or display a lost key.
               </p>
+            </div>
+
+            {/* Sender ID */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sender ID</label>
+              <p className="text-xs text-gray-500 mb-2">
+                Required as <code className="text-[11px] bg-gray-100 px-1 py-0.5 rounded font-mono">senderId</code> in API request bodies. Not a secret — safe to share with developers.
+              </p>
+              {senderId ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={senderId}
+                    readOnly
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm focus:outline-none text-gray-700"
+                  />
+                  <button
+                    onClick={handleCopySenderId}
+                    className="flex items-center gap-2 px-4 py-2.5 border rounded-lg transition-colors text-sm font-medium"
+                    style={
+                      copiedSenderId
+                        ? { borderColor: "#16a34a", backgroundColor: "#f0fdf4", color: "#16a34a" }
+                        : { borderColor: "#d1d5db", backgroundColor: "white",   color: "#374151" }
+                    }
+                  >
+                    {copiedSenderId
+                      ? <><CheckCircle className="w-4 h-4" /><span>Copied</span></>
+                      : <><Copy className="w-4 h-4" /><span>Copy</span></>}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>Sender ID not found. Log out and back in to reload your account.</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

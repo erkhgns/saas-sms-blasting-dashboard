@@ -571,15 +571,23 @@ function EndpointSection({ ep }: { ep: EndpointDoc }) {
 // ── ApiDocs page ──────────────────────────────────────────────────────────────
 
 export function ApiDocs() {
-  const apiKey = authStore.getApiKey() ?? "";
-  const [keyVisible, setKeyVisible] = useState(false);
-  const [keyCopied, setKeyCopied]   = useState(false);
+  const apiKey   = authStore.getApiKey() ?? "";
+  const senderId = authStore.getUser()?.id ?? "";
+  const [keyVisible,      setKeyVisible]      = useState(false);
+  const [keyCopied,       setKeyCopied]       = useState(false);
+  const [senderIdCopied,  setSenderIdCopied]  = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
 
   const copyKey = () => {
     navigator.clipboard.writeText(apiKey);
     setKeyCopied(true);
     setTimeout(() => setKeyCopied(false), 2000);
+  };
+
+  const copySenderId = () => {
+    navigator.clipboard.writeText(senderId);
+    setSenderIdCopied(true);
+    setTimeout(() => setSenderIdCopied(false), 2000);
   };
 
   const scrollTo = (id: string) => {
@@ -697,6 +705,34 @@ export function ApiDocs() {
                   API key not found. Go to <strong>Settings</strong> to generate one.
                 </div>
               )}
+
+              {/* Sender ID */}
+              <div className="mt-4">
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Your Sender ID</div>
+                <p className="text-xs text-gray-400 mb-2">
+                  Pass this as <code className="px-1 py-0.5 bg-gray-100 rounded text-[11px] font-mono text-gray-700">senderId</code> in request bodies that require it.
+                </p>
+                {senderId ? (
+                  <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 rounded-lg border border-gray-700">
+                    <code className="flex-1 text-sm font-mono text-green-400 break-all">{senderId}</code>
+                    <button
+                      onClick={copySenderId}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        senderIdCopied
+                          ? "bg-green-100 text-green-700"
+                          : "bg-white/10 text-gray-300 hover:bg-white/20 hover:text-white"
+                      }`}
+                    >
+                      {senderIdCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      {senderIdCopied ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="px-4 py-3 rounded-lg bg-yellow-50 border border-yellow-200 text-sm text-yellow-800">
+                    Sender ID not found. Go to <strong>Settings</strong> to check your account.
+                  </div>
+                )}
+              </div>
 
               {/* Base URL */}
               <div className="mt-4">
