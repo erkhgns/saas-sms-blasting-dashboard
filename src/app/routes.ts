@@ -16,6 +16,7 @@ import { Reports } from "@/pages/Reports";
 import { Settings } from "@/pages/Settings";
 import { Logs } from "@/pages/Logs";
 import { ApiDocs } from "@/pages/ApiDocs";
+import { Pancake } from "@/pages/Pancake";
 
 // Wrapper components so React Router gets proper component references
 // (React Router requires components, not JSX or function calls)
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
           { path: "logs", Component: Logs },
           { path: "api-docs", Component: ApiDocs },
           { path: "settings", Component: Settings },
+          { path: "settings/pancake", Component: Pancake },
         ],
       },
     ],

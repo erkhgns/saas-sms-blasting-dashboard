@@ -12,3 +12,4 @@ export * from "./auth.service";
 export * from "./device-logs.service";
 export * from "./tags.service";
 export * from "./tokens.service";
+export * from "./pancake.service";

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router";
 import {
   LayoutDashboard, Send, BarChart3, Users, MessageSquare,
-  FileText, Settings, ChevronDown, ScrollText, LogOut, Menu, Code2, Zap, ClipboardList,
+  FileText, Settings, ChevronDown, ScrollText, LogOut, Menu, Code2, Zap, ClipboardList, Plug,
 } from "lucide-react";
 import logoMark from "/logo-mark@2x.png";
 import { BRAND, authStore } from "@/utils";
@@ -19,7 +19,8 @@ const navItems = [
   { path: "/reports", label: "Reports", icon: FileText },
   { path: "/logs", label: "SMS Logs", icon: ScrollText },
   { path: "/api-docs", label: "API Docs", icon: Code2 },
-  { path: "/settings", label: "Settings", icon: Settings },
+  { path: "/settings", label: "Settings", icon: Settings, exact: true },
+  { path: "/settings/pancake", label: "Pancake", icon: Plug },
 ];
 
 function getInitials(name: string) {
