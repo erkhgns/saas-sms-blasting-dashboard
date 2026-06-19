@@ -117,6 +117,30 @@ function DateRangePicker({
   );
 }
 
+// ── CopyLink ──────────────────────────────────────────────────────────────────
+
+function CopyLink({ text, className = "" }: { text: string; className?: string }) {
+  const [copied, setCopied] = useState(false);
+  const handle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button
+      type="button"
+      onClick={handle}
+      title={copied ? "Copied!" : `Copy "${text}"`}
+      className={`text-left transition-colors ${
+        copied ? "text-green-600" : "hover:underline hover:decoration-dashed underline-offset-2 cursor-pointer"
+      } ${className}`}
+    >
+      {text}
+    </button>
+  );
+}
+
 // ── RecipientCell ─────────────────────────────────────────────────────────────
 
 function RecipientCell({
@@ -143,7 +167,7 @@ function RecipientCell({
         <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
           <User className="w-3.5 h-3.5 text-gray-400" />
         </div>
-        <span className="font-mono text-sm text-gray-700">{phone}</span>
+        <CopyLink text={phone} className="font-mono text-sm text-gray-700" />
       </div>
     );
   }
@@ -159,14 +183,14 @@ function RecipientCell({
 
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-medium text-gray-900 text-sm">{contact.name}</span>
+          <CopyLink text={contact.name} className="font-medium text-gray-900 text-sm" />
           {contact.optedOut && (
             <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200">
               Opted out
             </span>
           )}
         </div>
-        <div className="text-xs text-gray-500 font-mono">{phone}</div>
+        <CopyLink text={phone} className="text-xs text-gray-500 font-mono" />
         {contact.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
             {contact.tags.slice(0, 2).map((tag) => (
@@ -194,20 +218,32 @@ function RecipientCell({
 // ── MessageCell ───────────────────────────────────────────────────────────────
 
 function MessageCell({ content }: { content: string }) {
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [pos,    setPos]    = useState<{ x: number; y: number } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleClick = () => {
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   return (
     <>
-      <div
-        className="text-gray-900 truncate text-sm cursor-default select-none"
+      <button
+        type="button"
+        onClick={handleClick}
+        title={copied ? "Copied!" : "Click to copy message"}
+        className={`w-full text-left truncate text-sm transition-colors ${
+          copied ? "text-green-600" : "text-gray-900 hover:underline hover:decoration-dashed underline-offset-2 cursor-pointer"
+        }`}
         onMouseEnter={(e) => setPos({ x: e.clientX, y: e.clientY })}
         onMouseMove={(e)  => setPos({ x: e.clientX, y: e.clientY })}
         onMouseLeave={() => setPos(null)}
       >
-        {content}
-      </div>
+        {copied ? "Copied!" : content}
+      </button>
 
-      {pos && (
+      {pos && !copied && (
         <div
           className="fixed z-50 max-w-sm w-max bg-gray-900 text-white text-xs rounded-xl px-3.5 py-2.5 shadow-xl whitespace-pre-wrap break-words pointer-events-none leading-relaxed"
           style={{
