@@ -8,6 +8,8 @@ interface UseContactsOptions {
   limit?: number;
   search?: string;
   tag?: string;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 }
 
 interface UseContactsReturn {
@@ -19,7 +21,7 @@ interface UseContactsReturn {
 }
 
 export function useContacts(options: UseContactsOptions = {}): UseContactsReturn {
-  const { page = 1, limit = 10, search, tag } = options;
+  const { page = 1, limit = 10, search, tag, sortBy, sortDir } = options;
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [meta, setMeta] = useState<ContactsListMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +32,7 @@ export function useContacts(options: UseContactsOptions = {}): UseContactsReturn
     setError(null);
     try {
       const senderId = authStore.getUser()?.id ?? "";
-      const result = await contactsService.getAll({ senderId, page, limit, search, tag });
+      const result = await contactsService.getAll({ senderId, page, limit, search, tag, sortBy, sortDir });
       setContacts(result.data);
       setMeta(result.meta);
     } catch (err) {
@@ -38,7 +40,7 @@ export function useContacts(options: UseContactsOptions = {}): UseContactsReturn
     } finally {
       setLoading(false);
     }
-  }, [page, limit, search, tag]);
+  }, [page, limit, search, tag, sortBy, sortDir]);
 
   useEffect(() => { fetch(); }, [fetch]);
 

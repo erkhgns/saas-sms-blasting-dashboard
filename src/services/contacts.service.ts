@@ -25,14 +25,18 @@ export const contactsService = {
     search?: string;
     tag?: string;
     groupId?: string;
+    sortBy?: string;
+    sortDir?: "asc" | "desc";
   }) =>
     api.get<ContactsResponse>("/contacts", {
       senderId: params.senderId,
       page: params.page ?? 1,
       limit: params.limit ?? 10,
-      ...(params.search   ? { search:  params.search  } : {}),
-      ...(params.tag      ? { tag:     params.tag     } : {}),
-      ...(params.groupId  ? { groupId: params.groupId } : {}),
+      ...(params.search   ? { search:   params.search   } : {}),
+      ...(params.tag      ? { tag:      params.tag      } : {}),
+      ...(params.groupId  ? { groupId:  params.groupId  } : {}),
+      ...(params.sortBy   ? { sortBy:   params.sortBy   } : {}),
+      ...(params.sortDir  ? { sortDir:  params.sortDir  } : {}),
     }),
 
   getById: (id: string) =>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Search, Upload, Plus, Trash2, Ban, Pencil, CheckCircle2, AlertCircle, Braces, ArrowUpRight, Download } from "lucide-react";
+import { Search, Upload, Plus, Trash2, Ban, Pencil, CheckCircle2, AlertCircle, Braces, ArrowUpRight, Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { PageHeader, PrimaryButton, AvatarInitials } from "@/components/common";
 import { BRAND } from "@/utils";
 import { useContacts, useTokens, useTags } from "@/hooks";
@@ -29,6 +29,8 @@ export function Contacts() {
   const [importResult, setImportResult]         = useState<ImportContactsResponse | null>(null);
   const [importError, setImportError]           = useState<string | null>(null);
   const [visibleCustomCols, setVisibleCustomCols] = useState<string[]>([]);
+  const [sortBy,  setSortBy]  = useState<string | undefined>(undefined);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const csvInputRef = useRef<HTMLInputElement>(null);
 
   // Persist column visibility to localStorage per sender
@@ -45,8 +47,10 @@ export function Contacts() {
 
   const { contacts, meta, loading, error, refetch } = useContacts({
     page, limit,
-    search: search.trim() || undefined,
-    tag:    tagFilter || undefined,
+    search:  search.trim() || undefined,
+    tag:     tagFilter     || undefined,
+    sortBy,
+    sortDir: sortBy ? sortDir : undefined,
   });
 
   const { tokens } = useTokens();
@@ -92,6 +96,32 @@ export function Contacts() {
   // ── Handlers ───────────────────────────────────────────────────────
   const handleSearch = (value: string) => { setSearch(value); setPage(1); setSelectedIds([]); };
   const handleTagFilter = (value: string) => { setTagFilter(value); setPage(1); setSelectedIds([]); };
+
+  const handleSort = (column: string) => {
+    setPage(1);
+    setSelectedIds([]);
+    if (sortBy === column) {
+      setSortDir((d) => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(column);
+      setSortDir("asc");
+    }
+  };
+
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortBy !== column) return <ArrowUpDown className="w-3 h-3 opacity-40" />;
+    return sortDir === "asc"
+      ? <ArrowUp className="w-3 h-3" style={{ color: BRAND.primary }} />
+      : <ArrowDown className="w-3 h-3" style={{ color: BRAND.primary }} />;
+  };
+
+  const formatUpdatedAt = (iso: string) => {
+    const date  = new Date(iso);
+    const diffH = (Date.now() - date.getTime()) / 3_600_000;
+    if (diffH < 24)   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (diffH < 168)  return date.toLocaleDateString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
+    return date.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+  };
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -151,6 +181,7 @@ export function Contacts() {
   };
 
   // Total column count for skeleton/empty colSpan
+  // checkbox + name + phone + tags + updatedAt + custom cols + actions
   const totalCols = 6 + visibleTokens.length;
 
   return (
@@ -365,21 +396,47 @@ export function Contacts() {
                 <th className="px-6 py-3.5 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Name</th>
                 <th className="px-6 py-3.5 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Phone</th>
                 <th className="px-6 py-3.5 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Tags</th>
-                <th className="px-6 py-3.5 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                {/* Custom field column headers — sortable for number/decimal/date/boolean */}
+                {visibleTokens.map((t) => {
+                  const sortable = t.type && t.type !== "text";
+                  const colKey   = `customField:${t.key}`;
+                  return (
+                    <th
+                      key={t.key}
+                      className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap"
+                      style={{ color: "#9a3412", backgroundColor: "#fff7ed" }}
+                    >
+                      {sortable ? (
+                        <button
+                          type="button"
+                          onClick={() => handleSort(colKey)}
+                          className="flex items-center gap-1.5 text-inherit font-[inherit] text-[length:inherit] uppercase tracking-wider hover:opacity-80 transition-opacity"
+                        >
+                          <Braces className="w-3 h-3" />
+                          {t.label}
+                          <SortIcon column={colKey} />
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <Braces className="w-3 h-3" />
+                          {t.label}
+                        </div>
+                      )}
+                    </th>
+                  );
+                })}
 
-                {/* Custom field column headers — orange tint to distinguish from core cols */}
-                {visibleTokens.map((t) => (
-                  <th
-                    key={t.key}
-                    className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap"
-                    style={{ color: "#9a3412", backgroundColor: "#fff7ed" }}
+                {/* Updated At — sortable */}
+                <th className="px-6 py-3.5 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("updatedAt")}
+                    className="flex items-center gap-1.5 text-inherit font-[inherit] text-[length:inherit] uppercase tracking-wider hover:opacity-80 transition-opacity"
                   >
-                    <div className="flex items-center gap-1.5">
-                      <Braces className="w-3 h-3" />
-                      {t.label}
-                    </div>
-                  </th>
-                ))}
+                    Last Updated
+                    <SortIcon column="updatedAt" />
+                  </button>
+                </th>
 
                 <th className="px-6 py-3.5 text-right text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
               </tr>
@@ -472,20 +529,6 @@ export function Contacts() {
                         </div>
                       </td>
 
-                      {/* Status */}
-                      <td className="px-6 py-3.5">
-                        {contact.optedOut ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border bg-red-50 text-red-700 border-red-200">
-                            <Ban className="w-3 h-3" />
-                            Opted Out
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border bg-green-50 text-green-700 border-green-200">
-                            Active
-                          </span>
-                        )}
-                      </td>
-
                       {/* Custom field cells */}
                       {visibleTokens.map((t) => {
                         const v = contact.customFields?.[t.key];
@@ -500,6 +543,11 @@ export function Contacts() {
                           </td>
                         );
                       })}
+
+                      {/* Updated At */}
+                      <td className="px-6 py-3.5 text-sm text-gray-500 whitespace-nowrap">
+                        {formatUpdatedAt(contact.updatedAt)}
+                      </td>
 
                       {/* Actions — stopPropagation so row click doesn't fire */}
                       <td
