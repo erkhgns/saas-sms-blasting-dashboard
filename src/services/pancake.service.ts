@@ -1,6 +1,25 @@
 import { api } from "./api";
 import { authStore } from "@/utils/auth.store";
 
+// ── Shared advanced-config types ──────────────────────────────────────────────
+
+export type PancakeTokenKey =
+  | "order_id" | "tracking_number" | "cod"
+  | "first_name" | "last_name" | "full_name" | "product";
+
+export interface PancakeTokenMapping {
+  pancakeToken:   PancakeTokenKey;
+  customFieldKey: string;
+  operator?:      "upsert" | "increment" | "decrement";
+}
+
+export interface PancakeManualFieldUpdate {
+  customFieldKey: string;
+  type:           "text" | "number" | "decimal" | "boolean" | "date";
+  value:          string | number | boolean;
+  operator?:      "upsert" | "increment" | "decrement" | "add_days" | "subtract_days";
+}
+
 // ── Status templates ──────────────────────────────────────────────────────────
 
 export interface PancakeTemplate {
@@ -10,6 +29,10 @@ export interface PancakeTemplate {
   statusLabel: string;
   message: string;
   isEnabled: boolean;
+  tagsToAdd: string[];
+  tagsToRemove: string[];
+  tokenMappings: PancakeTokenMapping[];
+  manualFieldUpdates: PancakeManualFieldUpdate[];
   createdAt: string;
   updatedAt: string;
 }
@@ -19,11 +42,19 @@ export interface CreatePancakeTemplatePayload {
   effectiveStatus: string;
   message: string;
   isEnabled: boolean;
+  tagsToAdd: string[];
+  tagsToRemove: string[];
+  tokenMappings: PancakeTokenMapping[];
+  manualFieldUpdates: PancakeManualFieldUpdate[];
 }
 
 export interface UpdatePancakeTemplatePayload {
   message?: string;
   isEnabled?: boolean;
+  tagsToAdd?: string[];
+  tagsToRemove?: string[];
+  tokenMappings?: PancakeTokenMapping[];
+  manualFieldUpdates?: PancakeManualFieldUpdate[];
 }
 
 // ── Tag templates ─────────────────────────────────────────────────────────────
@@ -34,6 +65,10 @@ export interface PancakeTagTemplate {
   tagName: string;
   message: string;
   isEnabled: boolean;
+  tagsToAdd: string[];
+  tagsToRemove: string[];
+  tokenMappings: PancakeTokenMapping[];
+  manualFieldUpdates: PancakeManualFieldUpdate[];
   createdAt: string;
   updatedAt: string;
 }
@@ -43,11 +78,19 @@ export interface CreatePancakeTagTemplatePayload {
   tagName: string;
   message: string;
   isEnabled: boolean;
+  tagsToAdd: string[];
+  tagsToRemove: string[];
+  tokenMappings: PancakeTokenMapping[];
+  manualFieldUpdates: PancakeManualFieldUpdate[];
 }
 
 export interface UpdatePancakeTagTemplatePayload {
   message?: string;
   isEnabled?: boolean;
+  tagsToAdd?: string[];
+  tagsToRemove?: string[];
+  tokenMappings?: PancakeTokenMapping[];
+  manualFieldUpdates?: PancakeManualFieldUpdate[];
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────

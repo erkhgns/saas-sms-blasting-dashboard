@@ -4,6 +4,7 @@ import type { InboxThread, InboxMeta } from "@/types";
 
 interface UseInboxOptions {
   unread?: boolean;
+  tagIds?: string[];
 }
 
 interface UseInboxResult {
@@ -20,7 +21,7 @@ interface UseInboxResult {
 
 const LIMIT = 20;
 
-export function useInbox({ unread }: UseInboxOptions = {}): UseInboxResult {
+export function useInbox({ unread, tagIds }: UseInboxOptions = {}): UseInboxResult {
   const [threads, setThreads]         = useState<InboxThread[]>([]);
   const [meta, setMeta]               = useState<InboxMeta | null>(null);
   const [page, setPage]               = useState(1);
@@ -29,20 +30,27 @@ export function useInbox({ unread }: UseInboxOptions = {}): UseInboxResult {
   const [error, setError]             = useState<string | null>(null);
   const [tick, setTick]               = useState(0);
 
-  // Only show the full loading state on the very first fetch
   const isInitialLoad = useRef(true);
 
-  // Track unread filter via ref so we can detect changes without adding it to
-  // the main effect's deps (avoids double-fetch when filter + page change together)
   const unreadRef = useRef(unread);
   useEffect(() => {
     if (unreadRef.current !== unread) {
       unreadRef.current = unread;
-      // Reset to page 1 and force a fresh fetch when the filter flips
       setPage(1);
       setTick((t) => t + 1);
     }
   }, [unread]);
+
+  // Reset to page 1 when tag filter changes (compare by serialized value)
+  const tagIdsRef = useRef(tagIds?.join(",") ?? "");
+  useEffect(() => {
+    const next = tagIds?.join(",") ?? "";
+    if (tagIdsRef.current !== next) {
+      tagIdsRef.current = next;
+      setPage(1);
+      setTick((t) => t + 1);
+    }
+  }, [tagIds?.join(",")]);
 
   // Silent background refresh — resets to page 1, keeps list visible
   const refetch = useCallback(() => {
@@ -78,7 +86,7 @@ export function useInbox({ unread }: UseInboxOptions = {}): UseInboxResult {
     setError(null);
 
     inboxService
-      .getInbox(page, LIMIT, unreadRef.current)
+      .getInbox(page, LIMIT, unreadRef.current, tagIdsRef.current ? tagIdsRef.current.split(",") : undefined)
       .then((res) => {
         if (!cancelled) {
           setThreads((prev) => (isFirstPage ? res.data : [...prev, ...res.data]));

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Send, MessageSquare, Loader2, UserPlus, X, Check } from "lucide-react";
+import { Search, Send, MessageSquare, Loader2, UserPlus, X, Check, Tag, ChevronDown } from "lucide-react";
 import { AvatarInitials, PrimaryButton } from "@/components/common";
 import { BRAND } from "@/utils";
 import { useInbox, useConversation } from "@/hooks";
@@ -33,6 +33,177 @@ function formatTimestamp(iso: string | null | undefined): string {
 
 function displayName(thread: InboxThread): string {
   return thread.contact?.name ?? thread.phone;
+}
+
+// ── TagFilterDropdown ─────────────────────────────────────────────────────────
+
+function TagFilterDropdown({
+  allTags,
+  selectedIds,
+  onChange,
+}: {
+  allTags: { id: string; name: string; color: string | null }[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [open, setOpen]       = useState(false);
+  const [query, setQuery]     = useState("");
+  const containerRef          = useRef<HTMLDivElement>(null);
+  const searchRef             = useRef<HTMLInputElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Focus search when dropdown opens
+  useEffect(() => {
+    if (open) setTimeout(() => searchRef.current?.focus(), 50);
+    else setQuery("");
+  }, [open]);
+
+  const filtered = allTags.filter((t) =>
+    t.name.toLowerCase().includes(query.toLowerCase())
+  );
+
+  const toggle = (id: string) =>
+    onChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
+
+  const selectedTags = allTags.filter((t) => selectedIds.includes(t.id));
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Trigger button */}
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors shrink-0"
+          style={
+            selectedIds.length > 0
+              ? { borderColor: BRAND.primary, backgroundColor: BRAND.primary + "12", color: BRAND.primary }
+              : { borderColor: "#e5e7eb", backgroundColor: "#f9fafb", color: "#6b7280" }
+          }
+        >
+          <Tag className="w-3 h-3" />
+          Tags
+          {selectedIds.length > 0 && (
+            <span
+              className="flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold text-white"
+              style={{ backgroundColor: BRAND.primary }}
+            >
+              {selectedIds.length}
+            </span>
+          )}
+          <ChevronDown
+            className="w-3 h-3 transition-transform"
+            style={{ transform: open ? "rotate(180deg)" : "rotate(0)" }}
+          />
+        </button>
+
+        {/* Active tag chips */}
+        {selectedTags.map((tag) => (
+          <span
+            key={tag.id}
+            className="inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-full text-xs font-medium border"
+            style={{ borderColor: BRAND.primary + "40", backgroundColor: BRAND.primary + "10", color: BRAND.primary }}
+          >
+            {tag.name}
+            <button
+              type="button"
+              onClick={() => toggle(tag.id)}
+              className="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-orange-200 transition-colors"
+            >
+              <X className="w-2.5 h-2.5" />
+            </button>
+          </span>
+        ))}
+
+        {/* Clear all */}
+        {selectedIds.length > 1 && (
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute top-full left-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-30 overflow-hidden">
+          {/* Search */}
+          <div className="p-2 border-b border-gray-100">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+              <input
+                ref={searchRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search tags…"
+                className="w-full pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1"
+                style={{ "--tw-ring-color": BRAND.primary + "60" } as React.CSSProperties}
+              />
+            </div>
+          </div>
+
+          {/* Tag list */}
+          <div className="max-h-48 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <p className="px-3 py-2 text-xs text-gray-400">No tags found</p>
+            ) : (
+              filtered.map((tag) => {
+                const active = selectedIds.includes(tag.id);
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggle(tag.id)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors"
+                  >
+                    <span
+                      className="w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors"
+                      style={
+                        active
+                          ? { backgroundColor: BRAND.primary, borderColor: BRAND.primary }
+                          : { borderColor: "#d1d5db" }
+                      }
+                    >
+                      {active && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+                    </span>
+                    <span className="flex-1 text-xs text-gray-700 truncate">{tag.name}</span>
+                    {tag.color && (
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Footer */}
+          {selectedIds.length > 0 && (
+            <div className="px-3 py-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => { onChange([]); setOpen(false); }}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Clear all filters
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── SaveContactModal ──────────────────────────────────────────────────────────
@@ -267,6 +438,7 @@ export function Inbox() {
 
   const [search, setSearch]               = useState("");
   const [unreadOnly, setUnreadOnly]       = useState(false);
+  const [filterTagIds, setFilterTagIds]   = useState<string[]>([]);
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [replyText, setReplyText]         = useState("");
   const [sending, setSending]             = useState(false);
@@ -285,7 +457,7 @@ export function Inbox() {
     refetch: refetchInbox,
     loadMore,
     updateThread,
-  } = useInbox({ unread: unreadOnly || undefined });
+  } = useInbox({ unread: unreadOnly || undefined, tagIds: filterTagIds.length ? filterTagIds : undefined });
   const { messages, conversation, loading: msgLoading, refetch: refetchConversation } = useConversation(selectedPhone);
   const { tags: allTags } = useTags();
   const { tokens } = useTokens();
@@ -419,6 +591,17 @@ export function Inbox() {
               />
             </div>
           </div>
+
+          {/* Tag filter */}
+          {allTags.length > 0 && (
+            <div className="px-4 pb-3">
+              <TagFilterDropdown
+                allTags={allTags}
+                selectedIds={filterTagIds}
+                onChange={setFilterTagIds}
+              />
+            </div>
+          )}
 
           {/* All / Unread tabs */}
           <div className="flex">

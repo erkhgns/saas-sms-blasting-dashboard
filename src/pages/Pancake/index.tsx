@@ -7,20 +7,35 @@ import { PageHeader } from "@/components/common";
 import { authStore, BRAND } from "@/utils";
 import { pancakeService } from "@/services/pancake.service";
 import type { PancakeTemplate, PancakeTagTemplate } from "@/services/pancake.service";
+import { tagsService } from "@/services/tags.service";
+import { tokensService } from "@/services/tokens.service";
+import type { Tag as GabyTag, ApiToken } from "@/types";
+import { AdvancedSection, emptyAdvanced, advancedFromTemplate } from "./AdvancedSection";
+import type { AdvancedConfig } from "./AdvancedSection";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const WEBHOOK_URL = "https://api.gabysms.com/webhooks/pancake/orders";
 
 const PANCAKE_STATUSES: { value: string; label: string }[] = [
-  { value: "0",               label: "New"               },
-  { value: "1",               label: "Confirmed"         },
-  { value: "2",               label: "Shipped"           },
-  { value: "3",               label: "Delivered"         },
-  { value: "5",               label: "Returned"          },
-  { value: "9",               label: "Waiting for Pick Up" },
-  { value: "out_for_delivery", label: "Out for Delivery"  },
-  { value: "undeliverable",   label: "Delivery Failed"   },
+  { value: "0",               label: "New"                      },
+  { value: "1",               label: "Confirmed"                },
+  { value: "2",               label: "Shipped"                  },
+  { value: "3",               label: "Delivered"                },
+  { value: "4",               label: "Returning"                },
+  { value: "5",               label: "Returned"                 },
+  { value: "6",               label: "Canceled"                 },
+  { value: "8",               label: "Packaging"                },
+  { value: "9",               label: "Waiting for Pick Up"      },
+  { value: "11",              label: "Restocking"               },
+  { value: "12",              label: "Wait for Printing"        },
+  { value: "13",              label: "Printed"                  },
+  { value: "15",              label: "Partial Return"           },
+  { value: "16",              label: "Collected Money"          },
+  { value: "17",              label: "Waiting for Confirmation" },
+  { value: "20",              label: "Purchased"                },
+  { value: "out_for_delivery", label: "Out for Delivery"        },
+  { value: "undeliverable",   label: "Delivery Failed"          },
 ];
 
 const STATUS_MAP: Record<string, string> = Object.fromEntries(
@@ -28,13 +43,14 @@ const STATUS_MAP: Record<string, string> = Object.fromEntries(
 );
 
 const TOKEN_CHIPS = [
-  { token: "{{order_id}}",       label: "Order ID"         },
-  { token: "{{full_name}}",      label: "Full name"        },
-  { token: "{{first_name}}",     label: "First name"       },
-  { token: "{{last_name}}",      label: "Last name"        },
-  { token: "{{tracking_number}}", label: "Tracking number" },
-  { token: "{{cod}}",            label: "COD amount"       },
-  { token: "{{product}}",        label: "Product(s)"       },
+  { token: "{{name}}",            label: "Name"             },
+  { token: "{{order_id}}",        label: "Order ID"         },
+  { token: "{{full_name}}",       label: "Full name"        },
+  { token: "{{first_name}}",      label: "First name"       },
+  { token: "{{last_name}}",       label: "Last name"        },
+  { token: "{{tracking_number}}", label: "Tracking number"  },
+  { token: "{{cod}}",             label: "COD amount"       },
+  { token: "{{product}}",         label: "Product(s)"       },
 ];
 
 // ── CopyButton ────────────────────────────────────────────────────────────────
@@ -226,8 +242,12 @@ function SectionShell({
 
 function StatusTemplatesSection({
   senderId,
+  gabyTags,
+  gabyTokens,
 }: {
   senderId: string;
+  gabyTags: GabyTag[];
+  gabyTokens: ApiToken[];
 }) {
   const [templates,   setTemplates]   = useState<PancakeTemplate[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -238,9 +258,10 @@ function StatusTemplatesSection({
   const [addSuccess,  setAddSuccess]  = useState(false);
 
   // Add form state
-  const [addStatus,  setAddStatus]  = useState("");
-  const [addMessage, setAddMessage] = useState("");
-  const [addEnabled, setAddEnabled] = useState(true);
+  const [addStatus,    setAddStatus]    = useState("");
+  const [addMessage,   setAddMessage]   = useState("");
+  const [addEnabled,   setAddEnabled]   = useState(true);
+  const [addAdvanced,  setAddAdvanced]  = useState<AdvancedConfig>(emptyAdvanced());
 
   useEffect(() => { load(); }, []);
 
@@ -268,10 +289,14 @@ function StatusTemplatesSection({
         effectiveStatus: addStatus,
         message: addMessage.trim(),
         isEnabled: addEnabled,
+        tagsToAdd:          addAdvanced.tagsToAdd,
+        tagsToRemove:       addAdvanced.tagsToRemove,
+        tokenMappings:      addAdvanced.tokenMappings,
+        manualFieldUpdates: addAdvanced.manualFieldUpdates,
       });
       setTemplates((prev) => [...prev, created]);
       setShowAdd(false);
-      setAddStatus(""); setAddMessage(""); setAddEnabled(true);
+      setAddStatus(""); setAddMessage(""); setAddEnabled(true); setAddAdvanced(emptyAdvanced());
       setAddSuccess(true);
       setTimeout(() => setAddSuccess(false), 3000);
     } catch (err) {
@@ -291,8 +316,14 @@ function StatusTemplatesSection({
     await pancakeService.updateTemplate(id, { isEnabled });
   };
 
-  const handleEdit = async (id: string, message: string) => {
-    const updated = await pancakeService.updateTemplate(id, { message });
+  const handleEdit = async (id: string, message: string, advanced: AdvancedConfig) => {
+    const updated = await pancakeService.updateTemplate(id, {
+      message,
+      tagsToAdd:          advanced.tagsToAdd,
+      tagsToRemove:       advanced.tagsToRemove,
+      tokenMappings:      advanced.tokenMappings,
+      manualFieldUpdates: advanced.manualFieldUpdates,
+    });
     setTemplates((prev) => prev.map((t) => t.id === id ? updated : t));
   };
 
@@ -340,6 +371,7 @@ function StatusTemplatesSection({
             <MessageEditor value={addMessage} onChange={setAddMessage} />
           </div>
           <EnabledToggle value={addEnabled} onChange={setAddEnabled} />
+          <AdvancedSection value={addAdvanced} onChange={setAddAdvanced} gabyTags={gabyTags} gabyTokens={gabyTokens} />
           {addError && (
             <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               <AlertTriangle className="w-4 h-4 shrink-0" />{addError}
@@ -348,7 +380,7 @@ function StatusTemplatesSection({
           <FormActions
             saving={addSaving}
             canSave={!!addStatus && !!addMessage.trim()}
-            onCancel={() => { setShowAdd(false); setAddError(null); setAddStatus(""); setAddMessage(""); setAddEnabled(true); }}
+            onCancel={() => { setShowAdd(false); setAddError(null); setAddStatus(""); setAddMessage(""); setAddEnabled(true); setAddAdvanced(emptyAdvanced()); }}
           />
         </form>
       )}
@@ -380,10 +412,11 @@ function StatusTemplatesSection({
             <StatusTemplateRow
               key={t.id}
               template={t}
-              usedStatuses={usedStatuses}
               onToggle={handleToggle}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              gabyTags={gabyTags}
+              gabyTokens={gabyTokens}
             />
           ))}
         </ul>
@@ -404,24 +437,27 @@ function StatusTemplatesSection({
 
 function StatusTemplateRow({
   template,
-  usedStatuses,
   onToggle,
   onEdit,
   onDelete,
+  gabyTags,
+  gabyTokens,
 }: {
   template: PancakeTemplate;
-  usedStatuses: string[];
   onToggle: (id: string, enabled: boolean) => Promise<void>;
-  onEdit: (id: string, message: string) => Promise<void>;
+  onEdit: (id: string, message: string, advanced: AdvancedConfig) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  gabyTags: GabyTag[];
+  gabyTokens: ApiToken[];
 }) {
-  const [mode,      setMode]      = useState<"view" | "edit" | "delete">("view");
-  const [toggling,  setToggling]  = useState(false);
-  const [saving,    setSaving]    = useState(false);
-  const [deleting,  setDeleting]  = useState(false);
-  const [editMsg,   setEditMsg]   = useState(template.message);
+  const [mode,        setMode]        = useState<"view" | "edit" | "delete">("view");
+  const [toggling,    setToggling]    = useState(false);
+  const [saving,      setSaving]      = useState(false);
+  const [deleting,    setDeleting]    = useState(false);
+  const [editMsg,     setEditMsg]     = useState(template.message);
   const [editEnabled, setEditEnabled] = useState(template.isEnabled);
-  const [editError, setEditError] = useState<string | null>(null);
+  const [editAdvanced, setEditAdvanced] = useState<AdvancedConfig>(advancedFromTemplate(template));
+  const [editError,   setEditError]   = useState<string | null>(null);
 
   const statusLabel = STATUS_MAP[template.effectiveStatus] ?? template.statusLabel ?? template.effectiveStatus;
 
@@ -436,7 +472,7 @@ function StatusTemplateRow({
     setSaving(true);
     setEditError(null);
     try {
-      await onEdit(template.id, editMsg.trim());
+      await onEdit(template.id, editMsg.trim(), editAdvanced);
       setMode("view");
     } catch (err) {
       setEditError(err instanceof Error ? err.message : "Failed to save.");
@@ -464,6 +500,7 @@ function StatusTemplateRow({
             <MessageEditor value={editMsg} onChange={setEditMsg} />
           </div>
           <EnabledToggle value={editEnabled} onChange={setEditEnabled} />
+          <AdvancedSection value={editAdvanced} onChange={setEditAdvanced} gabyTags={gabyTags} gabyTokens={gabyTokens} />
           {editError && (
             <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               <AlertTriangle className="w-4 h-4 shrink-0" />{editError}
@@ -491,12 +528,25 @@ function StatusTemplateRow({
     );
   }
 
+  const hasAdvanced =
+    template.tagsToAdd?.length > 0 ||
+    template.tagsToRemove?.length > 0 ||
+    template.tokenMappings?.length > 0 ||
+    template.manualFieldUpdates?.length > 0;
+
   return (
     <li className="px-5 py-4 flex items-start gap-4 group">
       <span className="shrink-0 mt-0.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200 whitespace-nowrap">
         {statusLabel}
       </span>
-      <span className="flex-1 text-sm text-gray-600 font-mono leading-relaxed break-all">{template.message}</span>
+      <div className="flex-1 min-w-0">
+        <span className="text-sm text-gray-600 font-mono leading-relaxed break-all">{template.message}</span>
+        {hasAdvanced && (
+          <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-50 text-orange-600 border border-orange-100">
+            + actions
+          </span>
+        )}
+      </div>
       <button
         type="button"
         role="switch"
@@ -512,7 +562,15 @@ function StatusTemplateRow({
         />
       </button>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => { setEditMsg(template.message); setEditEnabled(template.isEnabled); setMode("edit"); }} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="Edit">
+        <button
+          onClick={() => {
+            setEditMsg(template.message);
+            setEditEnabled(template.isEnabled);
+            setEditAdvanced(advancedFromTemplate(template));
+            setMode("edit");
+          }}
+          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="Edit"
+        >
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button onClick={() => setMode("delete")} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
@@ -525,7 +583,15 @@ function StatusTemplateRow({
 
 // ── Tag Templates Section ─────────────────────────────────────────────────────
 
-function TagTemplatesSection({ senderId }: { senderId: string }) {
+function TagTemplatesSection({
+  senderId,
+  gabyTags,
+  gabyTokens,
+}: {
+  senderId: string;
+  gabyTags: GabyTag[];
+  gabyTokens: ApiToken[];
+}) {
   const [templates,  setTemplates]  = useState<PancakeTagTemplate[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [loadError,  setLoadError]  = useState<string | null>(null);
@@ -534,9 +600,10 @@ function TagTemplatesSection({ senderId }: { senderId: string }) {
   const [addError,   setAddError]   = useState<string | null>(null);
   const [addSuccess, setAddSuccess] = useState(false);
 
-  const [addTagName, setAddTagName] = useState("");
-  const [addMessage, setAddMessage] = useState("");
-  const [addEnabled, setAddEnabled] = useState(true);
+  const [addTagName,  setAddTagName]  = useState("");
+  const [addMessage,  setAddMessage]  = useState("");
+  const [addEnabled,  setAddEnabled]  = useState(true);
+  const [addAdvanced, setAddAdvanced] = useState<AdvancedConfig>(emptyAdvanced());
 
   useEffect(() => { load(); }, []);
 
@@ -562,10 +629,14 @@ function TagTemplatesSection({ senderId }: { senderId: string }) {
         tagName: addTagName.trim(),
         message: addMessage.trim(),
         isEnabled: addEnabled,
+        tagsToAdd:          addAdvanced.tagsToAdd,
+        tagsToRemove:       addAdvanced.tagsToRemove,
+        tokenMappings:      addAdvanced.tokenMappings,
+        manualFieldUpdates: addAdvanced.manualFieldUpdates,
       });
       setTemplates((prev) => [...prev, created]);
       setShowAdd(false);
-      setAddTagName(""); setAddMessage(""); setAddEnabled(true);
+      setAddTagName(""); setAddMessage(""); setAddEnabled(true); setAddAdvanced(emptyAdvanced());
       setAddSuccess(true);
       setTimeout(() => setAddSuccess(false), 3000);
     } catch (err) {
@@ -585,8 +656,14 @@ function TagTemplatesSection({ senderId }: { senderId: string }) {
     await pancakeService.updateTagTemplate(id, { isEnabled });
   };
 
-  const handleEdit = async (id: string, message: string) => {
-    const updated = await pancakeService.updateTagTemplate(id, { message });
+  const handleEdit = async (id: string, message: string, advanced: AdvancedConfig) => {
+    const updated = await pancakeService.updateTagTemplate(id, {
+      message,
+      tagsToAdd:          advanced.tagsToAdd,
+      tagsToRemove:       advanced.tagsToRemove,
+      tokenMappings:      advanced.tokenMappings,
+      manualFieldUpdates: advanced.manualFieldUpdates,
+    });
     setTemplates((prev) => prev.map((t) => t.id === id ? updated : t));
   };
 
@@ -626,6 +703,7 @@ function TagTemplatesSection({ senderId }: { senderId: string }) {
             <MessageEditor value={addMessage} onChange={setAddMessage} />
           </div>
           <EnabledToggle value={addEnabled} onChange={setAddEnabled} />
+          <AdvancedSection value={addAdvanced} onChange={setAddAdvanced} gabyTags={gabyTags} gabyTokens={gabyTokens} />
           {addError && (
             <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               <AlertTriangle className="w-4 h-4 shrink-0" />{addError}
@@ -634,7 +712,7 @@ function TagTemplatesSection({ senderId }: { senderId: string }) {
           <FormActions
             saving={addSaving}
             canSave={!!addTagName.trim() && !!addMessage.trim()}
-            onCancel={() => { setShowAdd(false); setAddError(null); setAddTagName(""); setAddMessage(""); setAddEnabled(true); }}
+            onCancel={() => { setShowAdd(false); setAddError(null); setAddTagName(""); setAddMessage(""); setAddEnabled(true); setAddAdvanced(emptyAdvanced()); }}
           />
         </form>
       )}
@@ -669,6 +747,8 @@ function TagTemplatesSection({ senderId }: { senderId: string }) {
               onToggle={handleToggle}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              gabyTags={gabyTags}
+              gabyTokens={gabyTokens}
             />
           ))}
         </ul>
@@ -692,19 +772,24 @@ function TagTemplateRow({
   onToggle,
   onEdit,
   onDelete,
+  gabyTags,
+  gabyTokens,
 }: {
   template: PancakeTagTemplate;
   onToggle: (id: string, enabled: boolean) => Promise<void>;
-  onEdit: (id: string, message: string) => Promise<void>;
+  onEdit: (id: string, message: string, advanced: AdvancedConfig) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  gabyTags: GabyTag[];
+  gabyTokens: ApiToken[];
 }) {
-  const [mode,      setMode]      = useState<"view" | "edit" | "delete">("view");
-  const [toggling,  setToggling]  = useState(false);
-  const [saving,    setSaving]    = useState(false);
-  const [deleting,  setDeleting]  = useState(false);
-  const [editMsg,   setEditMsg]   = useState(template.message);
+  const [mode,        setMode]        = useState<"view" | "edit" | "delete">("view");
+  const [toggling,    setToggling]    = useState(false);
+  const [saving,      setSaving]      = useState(false);
+  const [deleting,    setDeleting]    = useState(false);
+  const [editMsg,     setEditMsg]     = useState(template.message);
   const [editEnabled, setEditEnabled] = useState(template.isEnabled);
-  const [editError, setEditError] = useState<string | null>(null);
+  const [editAdvanced, setEditAdvanced] = useState<AdvancedConfig>(advancedFromTemplate(template));
+  const [editError,   setEditError]   = useState<string | null>(null);
 
   const handleToggle = async () => {
     setToggling(true);
@@ -717,7 +802,7 @@ function TagTemplateRow({
     setSaving(true);
     setEditError(null);
     try {
-      await onEdit(template.id, editMsg.trim());
+      await onEdit(template.id, editMsg.trim(), editAdvanced);
       setMode("view");
     } catch (err) {
       setEditError(err instanceof Error ? err.message : "Failed to save.");
@@ -747,6 +832,7 @@ function TagTemplateRow({
             <MessageEditor value={editMsg} onChange={setEditMsg} />
           </div>
           <EnabledToggle value={editEnabled} onChange={setEditEnabled} />
+          <AdvancedSection value={editAdvanced} onChange={setEditAdvanced} gabyTags={gabyTags} gabyTokens={gabyTokens} />
           {editError && (
             <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               <AlertTriangle className="w-4 h-4 shrink-0" />{editError}
@@ -774,12 +860,25 @@ function TagTemplateRow({
     );
   }
 
+  const hasAdvanced =
+    template.tagsToAdd?.length > 0 ||
+    template.tagsToRemove?.length > 0 ||
+    template.tokenMappings?.length > 0 ||
+    template.manualFieldUpdates?.length > 0;
+
   return (
     <li className="px-5 py-4 flex items-start gap-4 group">
       <span className="shrink-0 mt-0.5 px-2.5 py-1 rounded-full text-xs font-semibold font-mono bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap">
         {template.tagName}
       </span>
-      <span className="flex-1 text-sm text-gray-600 font-mono leading-relaxed break-all">{template.message}</span>
+      <div className="flex-1 min-w-0">
+        <span className="text-sm text-gray-600 font-mono leading-relaxed break-all">{template.message}</span>
+        {hasAdvanced && (
+          <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-50 text-orange-600 border border-orange-100">
+            + actions
+          </span>
+        )}
+      </div>
       <button
         type="button"
         role="switch"
@@ -795,7 +894,15 @@ function TagTemplateRow({
         />
       </button>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => { setEditMsg(template.message); setEditEnabled(template.isEnabled); setMode("edit"); }} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="Edit">
+        <button
+          onClick={() => {
+            setEditMsg(template.message);
+            setEditEnabled(template.isEnabled);
+            setEditAdvanced(advancedFromTemplate(template));
+            setMode("edit");
+          }}
+          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="Edit"
+        >
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button onClick={() => setMode("delete")} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
@@ -811,6 +918,15 @@ function TagTemplateRow({
 export function Pancake() {
   const apiKey   = authStore.getApiKey() ?? "";
   const senderId = authStore.getUser()?.id ?? "";
+
+  const [gabyTags,   setGabyTags]   = useState<GabyTag[]>([]);
+  const [gabyTokens, setGabyTokens] = useState<ApiToken[]>([]);
+
+  useEffect(() => {
+    if (!senderId) return;
+    tagsService.getAll(senderId).then(setGabyTags).catch(() => {});
+    tokensService.getAll(senderId).then(setGabyTokens).catch(() => {});
+  }, [senderId]);
 
   return (
     <div className="p-4 sm:p-8 max-w-3xl">
@@ -888,10 +1004,10 @@ export function Pancake() {
         </div>
 
         {/* ── Section 2: Status Templates ── */}
-        <StatusTemplatesSection senderId={senderId} />
+        <StatusTemplatesSection senderId={senderId} gabyTags={gabyTags} gabyTokens={gabyTokens} />
 
         {/* ── Section 3: Tag Templates ── */}
-        <TagTemplatesSection senderId={senderId} />
+        <TagTemplatesSection senderId={senderId} gabyTags={gabyTags} gabyTokens={gabyTokens} />
 
       </div>
     </div>
