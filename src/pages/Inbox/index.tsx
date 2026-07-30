@@ -557,7 +557,7 @@ export function Inbox() {
   };
 
   const handleReplyKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -794,7 +794,7 @@ export function Inbox() {
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   onKeyDown={handleReplyKeyDown}
-                  placeholder="Type your reply… (Ctrl+Enter to send)"
+                  placeholder="Type your reply… (Shift+Enter for new line)"
                   rows={3}
                   className="flex-1 px-4 py-3 border border-gray-300 rounded-lg resize-none text-sm"
                   style={{ outline: "none" }}
