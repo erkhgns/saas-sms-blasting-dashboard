@@ -466,7 +466,7 @@ export function Login() {
           <p className="text-center text-sm text-gray-600 mt-6">
             Don't have an account?{" "}
             <a
-              href="https://m.me/GABY.IO"
+              href="https://m.me/gabysoftwareph"
               target="_blank"
               rel="noopener noreferrer"
               className="font-semibold hover:underline"
