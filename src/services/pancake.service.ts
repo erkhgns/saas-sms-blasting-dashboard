@@ -5,7 +5,9 @@ import { authStore } from "@/utils/auth.store";
 
 export type PancakeTokenKey =
   | "order_id" | "tracking_number" | "cod"
-  | "first_name" | "last_name" | "full_name" | "product";
+  | "first_name" | "last_name" | "full_name" | "product"
+  | "total_quantity" | "full_address" | "reward_point"
+  | "reward_point_used" | "discount";
 
 export interface PancakeTokenMapping {
   pancakeToken:   PancakeTokenKey;

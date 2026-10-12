@@ -51,6 +51,11 @@ const TOKEN_CHIPS = [
   { token: "{{tracking_number}}", label: "Tracking number"  },
   { token: "{{cod}}",             label: "COD amount"       },
   { token: "{{product}}",         label: "Product(s)"       },
+  { token: "{{total_quantity}}",    label: "Total Quantity"                  },
+  { token: "{{full_address}}",      label: "Full Address"                    },
+  { token: "{{reward_point}}",      label: "Reward Points (Balance)"         },
+  { token: "{{reward_point_used}}", label: "Reward Points Used (This Order)" },
+  { token: "{{discount}}",          label: "Discount"                        },
 ];
 
 // ── CopyButton ────────────────────────────────────────────────────────────────
@@ -132,7 +137,12 @@ function MessageEditor({
         className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:border-transparent"
         style={{ "--tw-ring-color": BRAND.primary + "40" } as React.CSSProperties}
       />
-      <div className="text-right text-xs text-gray-400 mt-1">{value.length}/1000</div>
+      <div className="flex items-start justify-between gap-3 mt-1">
+        <p className="text-xs text-gray-400">
+          Numbers have no currency sign — type it yourself, e.g. <span className="font-mono">Discount: ₱{"{{discount}}"}</span>
+        </p>
+        <span className="text-xs text-gray-400 shrink-0">{value.length}/1000</span>
+      </div>
     </div>
   );
 }

@@ -40,7 +40,12 @@ const PANCAKE_TOKEN_OPTIONS: { value: PancakeTokenKey; label: string }[] = [
   { value: "first_name",      label: "First Name"       },
   { value: "last_name",       label: "Last Name"        },
   { value: "full_name",       label: "Full Name"        },
-  { value: "product",         label: "Product(s)"       },
+  { value: "product",           label: "Product(s)"                      },
+  { value: "total_quantity",    label: "Total Quantity"                  },
+  { value: "full_address",      label: "Full Address"                    },
+  { value: "reward_point",      label: "Reward Points (Balance)"         },
+  { value: "reward_point_used", label: "Reward Points Used (This Order)" },
+  { value: "discount",          label: "Discount"                        },
 ];
 
 const FIELD_TYPES: { value: PancakeManualFieldUpdate["type"]; label: string }[] = [
