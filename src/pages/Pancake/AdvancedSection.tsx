@@ -46,6 +46,7 @@ const PANCAKE_TOKEN_OPTIONS: { value: PancakeTokenKey; label: string }[] = [
   { value: "reward_point",      label: "Reward Points (Balance)"         },
   { value: "reward_point_used", label: "Reward Points Used (This Order)" },
   { value: "discount",          label: "Discount"                        },
+  { value: "money_to_collect",  label: "Amount to Collect"               },
 ];
 
 const FIELD_TYPES: { value: PancakeManualFieldUpdate["type"]; label: string }[] = [

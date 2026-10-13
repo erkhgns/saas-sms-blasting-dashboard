@@ -7,7 +7,7 @@ export type PancakeTokenKey =
   | "order_id" | "tracking_number" | "cod"
   | "first_name" | "last_name" | "full_name" | "product"
   | "total_quantity" | "full_address" | "reward_point"
-  | "reward_point_used" | "discount";
+  | "reward_point_used" | "discount" | "money_to_collect";
 
 export interface PancakeTokenMapping {
   pancakeToken:   PancakeTokenKey;

@@ -56,6 +56,7 @@ const TOKEN_CHIPS = [
   { token: "{{reward_point}}",      label: "Reward Points (Balance)"         },
   { token: "{{reward_point_used}}", label: "Reward Points Used (This Order)" },
   { token: "{{discount}}",          label: "Discount"                        },
+  { token: "{{money_to_collect}}",  label: "Amount to Collect — recommended over {{cod}}" },
 ];
 
 // ── CopyButton ────────────────────────────────────────────────────────────────
@@ -139,7 +140,7 @@ function MessageEditor({
       />
       <div className="flex items-start justify-between gap-3 mt-1">
         <p className="text-xs text-gray-400">
-          Numbers have no currency sign — type it yourself, e.g. <span className="font-mono">Discount: ₱{"{{discount}}"}</span>
+          Numbers have no currency sign — type it yourself, e.g. <span className="font-mono">₱{"{{money_to_collect}}"}</span>. Prefer {"{{money_to_collect}}"} over {"{{cod}}"}.
         </p>
         <span className="text-xs text-gray-400 shrink-0">{value.length}/1000</span>
       </div>
