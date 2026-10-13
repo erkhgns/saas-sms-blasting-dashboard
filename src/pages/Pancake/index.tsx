@@ -57,6 +57,8 @@ const TOKEN_CHIPS = [
   { token: "{{reward_point_used}}", label: "Reward Points Used (This Order)" },
   { token: "{{discount}}",          label: "Discount"                        },
   { token: "{{money_to_collect}}",  label: "Amount to Collect — recommended over {{cod}}" },
+  { token: "{{printing_note}}",     label: "Printing Note"                   },
+  { token: "{{order_note}}",        label: "Order Note"                      },
 ];
 
 // ── CopyButton ────────────────────────────────────────────────────────────────
