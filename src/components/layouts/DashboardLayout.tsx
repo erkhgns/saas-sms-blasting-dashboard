@@ -7,6 +7,7 @@ import {
 import logoMark from "/logo-mark@2x.png";
 import { BRAND, authStore } from "@/utils";
 import { authService } from "@/services/auth.service";
+import { useInboxAlerts } from "@/hooks/useInboxAlerts";
 
 const navItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -32,6 +33,7 @@ export function DashboardLayout() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const user = authStore.getUser();
+  const unreadThreads = useInboxAlerts();
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -74,6 +76,14 @@ export function DashboardLayout() {
                 <>
                   <item.icon className="w-5 h-5" style={{ color: isActive ? BRAND.primary : "#6b7280" }} />
                   <span className="font-medium">{item.label}</span>
+                  {item.path === "/inbox" && unreadThreads > 0 && (
+                    <span
+                      className="ml-auto min-w-5 h-5 px-1.5 rounded-full text-[11px] font-semibold text-white flex items-center justify-center"
+                      style={{ backgroundColor: BRAND.primary }}
+                    >
+                      {unreadThreads > 99 ? "99+" : unreadThreads}
+                    </span>
+                  )}
                 </>
               )}
             </NavLink>

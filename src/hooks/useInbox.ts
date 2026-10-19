@@ -14,12 +14,26 @@ interface UseInboxResult {
   loadingMore: boolean;    // true while fetching the next page
   hasMore: boolean;
   error: string | null;
-  refetch: () => void;     // silent background refresh — no loading flash
+  refetch: () => Promise<void>; // silent background refresh — merges page 1, keeps loaded pages
   loadMore: () => void;
   updateThread: (phone: string, patch: Partial<InboxThread>) => void; // optimistic patch
 }
 
 const LIMIT = 20;
+
+/**
+ * Merge a fresh page 1 into the threads already loaded.
+ * Fresh threads go on top in server order; loaded threads below keep their place.
+ * A loaded thread missing from a fresh page 1 whose activity is at or above the
+ * page's cutoff no longer belongs there (read under "unread only", deleted, etc.) — drop it.
+ */
+function mergeFirstPage(prev: InboxThread[], fresh: InboxThread[]): InboxThread[] {
+  if (fresh.length < LIMIT) return fresh; // page 1 is the whole list
+  const freshPhones = new Set(fresh.map((t) => t.phone));
+  const cutoff = fresh[fresh.length - 1].lastActivityAt;
+  const rest = prev.filter((t) => !freshPhones.has(t.phone) && t.lastActivityAt < cutoff);
+  return [...fresh, ...rest];
+}
 
 export function useInbox({ unread, tagIds }: UseInboxOptions = {}): UseInboxResult {
   const [threads, setThreads]         = useState<InboxThread[]>([]);
@@ -31,6 +45,8 @@ export function useInbox({ unread, tagIds }: UseInboxOptions = {}): UseInboxResu
   const [tick, setTick]               = useState(0);
 
   const isInitialLoad = useRef(true);
+  const refreshing    = useRef<Promise<void> | null>(null);
+  const refreshQueued = useRef<Promise<void> | null>(null);
 
   const unreadRef = useRef(unread);
   useEffect(() => {
@@ -52,10 +68,33 @@ export function useInbox({ unread, tagIds }: UseInboxOptions = {}): UseInboxResu
     }
   }, [tagIds?.join(",")]);
 
-  // Silent background refresh — resets to page 1, keeps list visible
-  const refetch = useCallback(() => {
-    setPage(1);
-    setTick((t) => t + 1);
+  // Silent background refresh — fetches page 1 and merges it, so scroll position
+  // and already-loaded pages are kept. Errors are ignored; the next refresh retries.
+  const refetch = useCallback(function refresh(): Promise<void> {
+    if (isInitialLoad.current) return Promise.resolve();
+    // One request at a time; calls made mid-request (e.g. right after sending) share
+    // one follow-up refresh that runs when the current one ends
+    if (refreshing.current) {
+      refreshQueued.current ??= refreshing.current.then(() => {
+        refreshQueued.current = null;
+        return refresh();
+      });
+      return refreshQueued.current;
+    }
+    const filterKey = `${unreadRef.current}|${tagIdsRef.current}`;
+
+    const request = inboxService
+      .getInbox(1, LIMIT, unreadRef.current, tagIdsRef.current ? tagIdsRef.current.split(",") : undefined)
+      .then((res) => {
+        // Filters changed mid-request — this result belongs to the old list
+        if (filterKey !== `${unreadRef.current}|${tagIdsRef.current}`) return;
+        setThreads((prev) => mergeFirstPage(prev, res.data));
+        setMeta((prev) => (prev ? { ...res.meta, page: prev.page } : res.meta));
+      })
+      .catch(() => {/* silent */})
+      .finally(() => { refreshing.current = null; });
+    refreshing.current = request;
+    return request;
   }, []);
 
   // Append next page
@@ -89,7 +128,12 @@ export function useInbox({ unread, tagIds }: UseInboxOptions = {}): UseInboxResu
       .getInbox(page, LIMIT, unreadRef.current, tagIdsRef.current ? tagIdsRef.current.split(",") : undefined)
       .then((res) => {
         if (!cancelled) {
-          setThreads((prev) => (isFirstPage ? res.data : [...prev, ...res.data]));
+          setThreads((prev) => {
+            if (isFirstPage) return res.data;
+            // Background refreshes can shift offsets, so a later page may repeat threads
+            const have = new Set(prev.map((t) => t.phone));
+            return [...prev, ...res.data.filter((t) => !have.has(t.phone))];
+          });
           setMeta(res.meta);
           if (isFirstPage) isInitialLoad.current = false;
         }

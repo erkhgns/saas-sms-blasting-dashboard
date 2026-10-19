@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Send, MessageSquare, Loader2, UserPlus, X, Check, Tag, ChevronDown } from "lucide-react";
+import { Search, Send, MessageSquare, Loader2, UserPlus, X, Check, Tag, ChevronDown, Volume2, VolumeX } from "lucide-react";
 import { AvatarInitials, PrimaryButton } from "@/components/common";
 import { BRAND } from "@/utils";
 import { useInbox, useConversation } from "@/hooks";
 import { useTags } from "@/hooks/useTags";
 import { useTokens } from "@/hooks/useTokens";
+import { setViewingInboxPhone, requestInboxAlertsCheck, onInboxCheck } from "@/hooks/useInboxAlerts";
+import { isSoundMuted, setSoundMuted } from "@/utils/notificationSound";
 import { inboxService, messagesService, contactsService } from "@/services";
 import { authStore } from "@/utils/auth.store";
 import type { InboxThread } from "@/types";
@@ -433,6 +435,9 @@ function ThreadItem({ thread, selected, allTags, onClick }: ThreadItemProps) {
 
 // ── Main component ───────────────────────────────────────────────────────────
 
+// Within this many px of the bottom counts as "reading the latest messages"
+const NEAR_BOTTOM_PX = 80;
+
 export function Inbox() {
   const senderId = authStore.getUser()?.id ?? "";
 
@@ -445,6 +450,11 @@ export function Inbox() {
   const [sendError, setSendError]         = useState<string | null>(null);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const messagesEndRef                    = useRef<HTMLDivElement>(null);
+  const messagesScrollRef                 = useRef<HTMLDivElement>(null);
+  const nearBottomRef                     = useRef(true);
+  const lastMessageRef                    = useRef<{ phone: string | null; id: string | null }>({ phone: null, id: null });
+  const [hasNewBelow, setHasNewBelow]     = useState(false);
+  const [soundMuted, setSoundMutedState]  = useState(isSoundMuted);
   const sentinelRef                       = useRef<HTMLDivElement>(null);
 
   const {
@@ -457,17 +467,52 @@ export function Inbox() {
     refetch: refetchInbox,
     loadMore,
     updateThread,
-  } = useInbox({ unread: unreadOnly || undefined, tagIds: filterTagIds.length ? filterTagIds : undefined });
-  const { messages, conversation, loading: msgLoading, refetch: refetchConversation } = useConversation(selectedPhone);
+  } = useInbox({
+    unread: unreadOnly || undefined,
+    tagIds: filterTagIds.length ? filterTagIds : undefined,
+  });
+  const { messages, conversation, loading: msgLoading, refetch: refetchConversation } =
+    useConversation(selectedPhone);
+
+  // Refresh on the background unread check's clock (useInboxAlerts, every 15s while visible)
+  // instead of a separate timer, so new messages show up together with the notification sound
+  useEffect(
+    () => onInboxCheck(() => Promise.all([refetchInbox(), refetchConversation()])),
+    [refetchInbox, refetchConversation],
+  );
   const { tags: allTags } = useTags();
   const { tokens } = useTokens();
 
-  // Auto-scroll to latest message
+  const scrollToLatest = useCallback((behavior: ScrollBehavior) => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+    setHasNewBelow(false);
+  }, []);
+
+  const handleMessagesScroll = () => {
+    const el = messagesScrollRef.current;
+    if (!el) return;
+    nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+    if (nearBottomRef.current) setHasNewBelow(false);
+  };
+
+  // Scroll only when the latest message changes: jump to the bottom when a conversation
+  // opens; on a new message, follow it if the user is near the bottom or just sent it,
+  // otherwise leave them where they are and show the "New message" button.
   useEffect(() => {
-    if (messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const last = messages.length ? messages[messages.length - 1] : null;
+    const prev = lastMessageRef.current;
+    lastMessageRef.current = { phone: selectedPhone, id: last?.id ?? null };
+    if (!last || last.id === prev.id) return;
+
+    if (prev.phone !== selectedPhone || prev.id === null) {
+      nearBottomRef.current = true;
+      scrollToLatest("auto");
+    } else if (nearBottomRef.current || last.direction === "outbound") {
+      scrollToLatest("smooth");
+    } else {
+      setHasNewBelow(true);
     }
-  }, [messages]);
+  }, [messages, selectedPhone, scrollToLatest]);
 
   // Infinite scroll — load next page when sentinel enters view
   useEffect(() => {
@@ -486,15 +531,28 @@ export function Inbox() {
     return () => observer.disconnect();
   }, [hasMore, loadingMore, loadMore]);
 
-  // Mark thread as read when opened — optimistic local update, no refetch
+  // Mark thread as read when opened, and again when a refresh brings in new messages
+  // for the thread already open — optimistic local update, no refetch
+  const selectedUnread = threads.find((t) => t.phone === selectedPhone)?.unreadCount ?? 0;
   useEffect(() => {
-    if (!selectedPhone) return;
-    const thread = threads.find((t) => t.phone === selectedPhone);
-    if (thread && thread.unreadCount > 0) {
-      updateThread(selectedPhone, { unreadCount: 0 });
-      inboxService.markRead(selectedPhone).catch(() => {/* silent */});
-    }
-  }, [selectedPhone]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!selectedPhone || selectedUnread === 0) return;
+    updateThread(selectedPhone, { unreadCount: 0 });
+    inboxService
+      .markRead(selectedPhone)
+      .then(requestInboxAlertsCheck) // tab title / sidebar count drops right away
+      .catch(() => {/* silent */});
+  }, [selectedPhone, selectedUnread, updateThread]);
+
+  // No notification sound for the conversation the user is looking at
+  useEffect(() => {
+    setViewingInboxPhone(selectedPhone);
+    return () => setViewingInboxPhone(null);
+  }, [selectedPhone]);
+
+  const toggleSound = () => {
+    setSoundMuted(!soundMuted);
+    setSoundMutedState(!soundMuted);
+  };
 
   const filteredThreads = threads.filter((t) => {
     if (!search.trim()) return true;
@@ -527,6 +585,7 @@ export function Inbox() {
 
   const handleSelectThread = useCallback((phone: string) => {
     setSelectedPhone(phone);
+    setHasNewBelow(false);
     setReplyText("");
     setSendError(null);
   }, []);
@@ -576,7 +635,18 @@ export function Inbox() {
         {/* Header */}
         <div className="border-b border-gray-200">
           <div className="px-4 pt-4 pb-3">
-            <h2 className="font-semibold text-gray-900 mb-3">Inbox</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-gray-900">Inbox</h2>
+              <button
+                type="button"
+                onClick={toggleSound}
+                title={soundMuted ? "Turn on new message sound" : "Mute new message sound"}
+                aria-label={soundMuted ? "Turn on new message sound" : "Mute new message sound"}
+                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+              >
+                {soundMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -723,48 +793,65 @@ export function Inbox() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {msgLoading && (
-                <div className="flex items-center justify-center py-8 text-gray-400">
-                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  <span className="text-sm">Loading messages…</span>
-                </div>
-              )}
-              {!msgLoading && messages.length === 0 && (
-                <div className="text-center text-gray-400 text-sm py-8">No messages in this conversation yet.</div>
-              )}
-              {messages.map((msg) => {
-                const isOut = msg.direction === "outbound";
-                return (
-                  <div key={msg.id} className={`flex ${isOut ? "justify-end" : "justify-start"}`}>
-                    <div className="max-w-md">
-                      <div
-                        className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                          isOut
-                            ? "text-white rounded-br-sm"
-                            : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
-                        }`}
-                        style={isOut ? { backgroundColor: BRAND.primary } : {}}
-                      >
-                        {msg.content}
-                      </div>
-                      <div className={`flex items-center gap-1.5 mt-1 ${isOut ? "justify-end" : "justify-start"}`}>
-                        <span className="text-xs text-gray-400">{formatTimestamp(msg.timestamp)}</span>
-                        {isOut && msg.status && (
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                            msg.status === "SENT"   ? "bg-green-100 text-green-700" :
-                            msg.status === "FAILED" ? "bg-red-100 text-red-700" :
-                                                      "bg-gray-100 text-gray-500"
-                          }`}>
-                            {msg.status}
-                          </span>
-                        )}
+            <div className="flex-1 relative min-h-0">
+              <div
+                ref={messagesScrollRef}
+                onScroll={handleMessagesScroll}
+                className="absolute inset-0 overflow-y-auto p-6 space-y-4"
+              >
+                {msgLoading && (
+                  <div className="flex items-center justify-center py-8 text-gray-400">
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    <span className="text-sm">Loading messages…</span>
+                  </div>
+                )}
+                {!msgLoading && messages.length === 0 && (
+                  <div className="text-center text-gray-400 text-sm py-8">No messages in this conversation yet.</div>
+                )}
+                {messages.map((msg) => {
+                  const isOut = msg.direction === "outbound";
+                  return (
+                    <div key={msg.id} className={`flex ${isOut ? "justify-end" : "justify-start"}`}>
+                      <div className="max-w-md">
+                        <div
+                          className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                            isOut
+                              ? "text-white rounded-br-sm"
+                              : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
+                          }`}
+                          style={isOut ? { backgroundColor: BRAND.primary } : {}}
+                        >
+                          {msg.content}
+                        </div>
+                        <div className={`flex items-center gap-1.5 mt-1 ${isOut ? "justify-end" : "justify-start"}`}>
+                          <span className="text-xs text-gray-400">{formatTimestamp(msg.timestamp)}</span>
+                          {isOut && msg.status && (
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                              msg.status === "SENT"   ? "bg-green-100 text-green-700" :
+                              msg.status === "FAILED" ? "bg-red-100 text-red-700" :
+                                                        "bg-gray-100 text-gray-500"
+                            }`}>
+                              {msg.status}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
+                  );
+                })}
+                <div ref={messagesEndRef} />
+              </div>
+              {hasNewBelow && (
+                <button
+                  type="button"
+                  onClick={() => scrollToLatest("smooth")}
+                  className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 px-3.5 py-1.5 rounded-full text-xs font-medium text-white shadow-md"
+                  style={{ backgroundColor: BRAND.primary }}
+                >
+                  New message
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Token values bar — uses conversation contact which includes customFields (CR-01) */}
