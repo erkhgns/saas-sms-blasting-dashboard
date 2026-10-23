@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { Eye, EyeOff, ArrowLeft, CheckCircle, MessageSquare } from "lucide-react";
 import { BRAND } from "@/utils";
 import { authService } from "@/services/auth.service";
+import { ApiError } from "@/services/api";
 import logoMark from "/logo-mark@2x.png";
 
 type View = "login" | "forgot" | "reset" | "success";
@@ -58,7 +59,11 @@ export function Login() {
       await authService.login({ email, password });
       navigate("/", { replace: true });
     } catch (err) {
-      setLoginError(err instanceof Error ? err.message : "Invalid email or password.");
+      setLoginError(
+        err instanceof ApiError && err.status === 401
+          ? "Invalid email or password."
+          : err instanceof Error ? err.message : "Invalid email or password."
+      );
     } finally {
       setLoginLoading(false);
     }
@@ -187,7 +192,7 @@ export function Login() {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
                     placeholder="you@company.com"
                     required
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg"
@@ -205,7 +210,7 @@ export function Login() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => { setPassword(e.target.value); setLoginError(null); }}
                       placeholder="Enter your password"
                       required
                       className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg"

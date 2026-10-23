@@ -118,8 +118,9 @@ async function request<T>(
 
     clearTimeout(timeoutId);
 
-    // Access token expired — try refresh once then retry
-    if (response.status === 401 && !isRetry && !path.startsWith("/auth/refresh")) {
+    // Access token expired — try refresh once then retry.
+    // Public routes are skipped: a 401 from /auth/login means wrong credentials, not an expired session.
+    if (response.status === 401 && !isRetry && !isPublic(path)) {
       logger.warn("API", "401 received, attempting token refresh...");
       try {
         await refreshTokens();
