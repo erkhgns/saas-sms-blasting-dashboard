@@ -104,8 +104,8 @@ export function RulesTab({
     try {
       await onDuplicate(rule.id);
       pushToast(`"${rule.name}" duplicated.`);
-    } catch {
-      pushToast("Failed to duplicate rule.", "error");
+    } catch (err) {
+      pushToast(err instanceof Error && err.message ? `Failed to duplicate rule: ${err.message}` : "Failed to duplicate rule.", "error");
     } finally {
       setDuplicatingId(null);
     }

@@ -37,8 +37,8 @@ interface UseAutomationsReturn {
   /** Delete a rule and remove it from the local list. */
   deleteRule: (ruleId: string) => Promise<void>;
   /**
-   * Duplicate a rule via POST /rules/:id/duplicate.
-   * Appends the returned copy to the local list (sorted by sortOrder).
+   * Duplicate a rule by creating a copy through POST /rules: same trigger, conditions,
+   * frequency and actions, name + " (copy)", disabled, placed at the end of the list.
    */
   duplicateRule: (ruleId: string) => Promise<AutomationRule>;
   /**
@@ -138,11 +138,27 @@ export function useAutomations(): UseAutomationsReturn {
   }, []);
 
   // ── Duplicate rule ────────────────────────────────────────────────────────
+  // The backend has no POST /rules/:id/duplicate route (404), so the copy is
+  // built here and saved with the regular create endpoint.
+  // Keep the copied fields in sync with CreateAutomationRulePayload.
   const duplicateRule = useCallback(async (ruleId: string): Promise<AutomationRule> => {
-    const copy = await automationsService.duplicateRule(ruleId);
+    const source = rules.find((r) => r.id === ruleId);
+    if (!source) throw new Error("Rule not found. Refresh the page and try again.");
+
+    const copy = await automationsService.createRule({
+      senderId:      source.senderId || senderId,
+      name:          `${source.name} (copy)`,
+      isEnabled:     false,
+      triggerType:   source.triggerType,
+      triggerConfig: structuredClone(source.triggerConfig),
+      conditions:    structuredClone(source.conditions),
+      frequency:     source.frequency,
+      actions:       structuredClone(source.actions),
+      sortOrder:     Math.max(-1, ...rules.map((r) => r.sortOrder)) + 1,
+    });
     setRules((prev) => [...prev, copy].sort((a, b) => a.sortOrder - b.sortOrder));
     return copy;
-  }, []);
+  }, [rules, senderId]);
 
   // ── Reorder rules (optimistic) ────────────────────────────────────────────
   const reorderRules = useCallback(async (payload: ReorderRulesPayload) => {

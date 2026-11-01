@@ -44,14 +44,6 @@ export const automationsService = {
   deleteRule: (ruleId: string) =>
     api.delete<void>(`/automations/rules/${ruleId}`),
 
-  /**
-   * Duplicate an existing rule.
-   * The server appends " (copy)" to the name, sets isEnabled=false,
-   * and assigns a new sortOrder at the end of the list.
-   */
-  duplicateRule: (ruleId: string) =>
-    api.post<AutomationRule>(`/automations/rules/${ruleId}/duplicate`, {}),
-
   /** Batch-update sortOrder for all rules after a drag-reorder. */
   reorderRules: (payload: ReorderRulesPayload) =>
     api.patch<void>("/automations/rules/reorder", payload),
