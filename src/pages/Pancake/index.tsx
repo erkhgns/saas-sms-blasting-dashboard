@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Copy, Check, Plus, Pencil, Trash2, AlertTriangle, CheckCircle,
-  Plug, MessageSquare, ChevronDown, Tag, FlaskConical,
+  Plug, MessageSquare, ChevronDown, Tag, FlaskConical, Bike,
 } from "lucide-react";
 import { PageHeader } from "@/components/common";
 import { authStore, BRAND } from "@/utils";
@@ -59,7 +59,21 @@ const TOKEN_CHIPS = [
   { token: "{{money_to_collect}}",  label: "Amount to Collect — recommended over {{cod}}" },
   { token: "{{printing_note}}",     label: "Printing Note"                   },
   { token: "{{order_note}}",        label: "Order Note"                      },
+  { token: "{{customer_phone}}",    label: "Customer Phone"                  },
 ];
+
+// Filled only on Out for Delivery — blank on every other status, so only offered there
+const RIDER_TOKEN_CHIPS = [
+  { token: "{{rider_phone}}", label: "Rider Phone"                },
+  { token: "{{rider_name}}",  label: "Rider Name — blank for SPX" },
+  { token: "{{courier}}",     label: "Courier, e.g. \"J&T Phi\""  },
+];
+
+const OUT_FOR_DELIVERY = "out_for_delivery";
+
+const DEFAULT_RIDER_MESSAGE =
+  "Hi Rider! Order {{order_id}} for {{full_name}} ({{customer_phone}}), " +
+  "{{full_address}}. Collect ₱{{money_to_collect}}. Note: {{printing_note}}";
 
 // ── CopyButton ────────────────────────────────────────────────────────────────
 
@@ -92,10 +106,13 @@ function MessageEditor({
   value,
   onChange,
   placeholder = "Type your SMS message…",
+  riderTokens = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  /** Also offer the Out for Delivery rider tokens. */
+  riderTokens?: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -116,7 +133,7 @@ function MessageEditor({
   return (
     <div>
       <div className="flex flex-wrap gap-1.5 mb-2">
-        {TOKEN_CHIPS.map((c) => (
+        {(riderTokens ? [...TOKEN_CHIPS, ...RIDER_TOKEN_CHIPS] : TOKEN_CHIPS).map((c) => (
           <button
             key={c.token}
             type="button"
@@ -173,6 +190,83 @@ function EnabledToggle({ value, onChange }: { value: boolean; onChange: (v: bool
       </span>
     </div>
   );
+}
+
+// ── RiderSmsSection ───────────────────────────────────────────────────────────
+// Out for Delivery template only: optional second SMS to the courier rider.
+
+function RiderSmsSection({
+  enabled,
+  message,
+  onEnabledChange,
+  onMessageChange,
+}: {
+  enabled: boolean;
+  message: string;
+  onEnabledChange: (v: boolean) => void;
+  onMessageChange: (v: string) => void;
+}) {
+  const handleToggle = () => {
+    // Pre-fill the suggested message the first time it's turned on
+    if (!enabled && !message.trim()) onMessageChange(DEFAULT_RIDER_MESSAGE);
+    onEnabledChange(!enabled);
+  };
+
+  return (
+    <div className="p-4 bg-white border border-gray-200 rounded-xl space-y-3">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-2">
+          <Bike className="w-4 h-4 mt-0.5 shrink-0" style={{ color: BRAND.primary }} />
+          <div>
+            <div className="text-sm font-semibold text-gray-900">Also send SMS to the rider</div>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Sent once per rider. If the parcel is re-attempted with a new rider, the new rider is texted too.
+              Not sent for own-delivery orders.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Also send SMS to the rider"
+          onClick={handleToggle}
+          className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none"
+          style={{ backgroundColor: enabled ? BRAND.primary : "#d1d5db" }}
+        >
+          <span
+            className="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+            style={{ transform: enabled ? "translateX(22px)" : "translateX(2px)" }}
+          />
+        </button>
+      </div>
+
+      {enabled && (
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Rider Message</label>
+          <MessageEditor
+            value={message}
+            onChange={onMessageChange}
+            placeholder="Type the SMS for the rider…"
+            riderTokens
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            The rider's number comes from Pancake for J&amp;T and SPX. SPX doesn't share rider names,
+            so avoid {"{{rider_name}}"} if you ship with SPX.
+          </p>
+          {!message.trim() && (
+            <p className="text-xs text-red-600 mt-1">Enter a rider message or turn rider SMS off.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Rider fields for a create/update payload — only the out_for_delivery template accepts them. */
+function riderPayload(status: string, enabled: boolean, message: string) {
+  if (status !== OUT_FOR_DELIVERY) return {};
+  return { riderSmsEnabled: enabled, riderMessage: message.trim() || null };
 }
 
 // ── FormActions ───────────────────────────────────────────────────────────────
@@ -275,8 +369,15 @@ function StatusTemplatesSection({
   const [addMessage,   setAddMessage]   = useState("");
   const [addEnabled,   setAddEnabled]   = useState(true);
   const [addAdvanced,  setAddAdvanced]  = useState<AdvancedConfig>(emptyAdvanced());
+  const [addRiderEnabled, setAddRiderEnabled] = useState(false);
+  const [addRiderMessage, setAddRiderMessage] = useState("");
 
   useEffect(() => { load(); }, []);
+
+  const resetAddForm = () => {
+    setAddStatus(""); setAddMessage(""); setAddEnabled(true); setAddAdvanced(emptyAdvanced());
+    setAddRiderEnabled(false); setAddRiderMessage("");
+  };
 
   async function load() {
     try {
@@ -306,10 +407,11 @@ function StatusTemplatesSection({
         tagsToRemove:       addAdvanced.tagsToRemove,
         tokenMappings:      addAdvanced.tokenMappings,
         manualFieldUpdates: addAdvanced.manualFieldUpdates,
+        ...riderPayload(addStatus, addRiderEnabled, addRiderMessage),
       });
       setTemplates((prev) => [...prev, created]);
       setShowAdd(false);
-      setAddStatus(""); setAddMessage(""); setAddEnabled(true); setAddAdvanced(emptyAdvanced());
+      resetAddForm();
       setAddSuccess(true);
       setTimeout(() => setAddSuccess(false), 3000);
     } catch (err) {
@@ -329,13 +431,22 @@ function StatusTemplatesSection({
     await pancakeService.updateTemplate(id, { isEnabled });
   };
 
-  const handleEdit = async (id: string, message: string, advanced: AdvancedConfig) => {
+  const handleEdit = async (
+    id: string,
+    message: string,
+    isEnabled: boolean,
+    advanced: AdvancedConfig,
+    rider: { enabled: boolean; message: string },
+  ) => {
+    const status = templates.find((t) => t.id === id)?.effectiveStatus ?? "";
     const updated = await pancakeService.updateTemplate(id, {
       message,
+      isEnabled,
       tagsToAdd:          advanced.tagsToAdd,
       tagsToRemove:       advanced.tagsToRemove,
       tokenMappings:      advanced.tokenMappings,
       manualFieldUpdates: advanced.manualFieldUpdates,
+      ...riderPayload(status, rider.enabled, rider.message),
     });
     setTemplates((prev) => prev.map((t) => t.id === id ? updated : t));
   };
@@ -381,9 +492,17 @@ function StatusTemplatesSection({
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">SMS Message</label>
-            <MessageEditor value={addMessage} onChange={setAddMessage} />
+            <MessageEditor value={addMessage} onChange={setAddMessage} riderTokens={addStatus === OUT_FOR_DELIVERY} />
           </div>
           <EnabledToggle value={addEnabled} onChange={setAddEnabled} />
+          {addStatus === OUT_FOR_DELIVERY && (
+            <RiderSmsSection
+              enabled={addRiderEnabled}
+              message={addRiderMessage}
+              onEnabledChange={setAddRiderEnabled}
+              onMessageChange={setAddRiderMessage}
+            />
+          )}
           <AdvancedSection value={addAdvanced} onChange={setAddAdvanced} gabyTags={gabyTags} gabyTokens={gabyTokens} />
           {addError && (
             <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
@@ -392,8 +511,11 @@ function StatusTemplatesSection({
           )}
           <FormActions
             saving={addSaving}
-            canSave={!!addStatus && !!addMessage.trim()}
-            onCancel={() => { setShowAdd(false); setAddError(null); setAddStatus(""); setAddMessage(""); setAddEnabled(true); setAddAdvanced(emptyAdvanced()); }}
+            canSave={
+              !!addStatus && !!addMessage.trim() &&
+              !(addStatus === OUT_FOR_DELIVERY && addRiderEnabled && !addRiderMessage.trim())
+            }
+            onCancel={() => { setShowAdd(false); setAddError(null); resetAddForm(); }}
           />
         </form>
       )}
@@ -458,7 +580,13 @@ function StatusTemplateRow({
 }: {
   template: PancakeTemplate;
   onToggle: (id: string, enabled: boolean) => Promise<void>;
-  onEdit: (id: string, message: string, advanced: AdvancedConfig) => Promise<void>;
+  onEdit: (
+    id: string,
+    message: string,
+    isEnabled: boolean,
+    advanced: AdvancedConfig,
+    rider: { enabled: boolean; message: string },
+  ) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   gabyTags: GabyTag[];
   gabyTokens: ApiToken[];
@@ -470,9 +598,12 @@ function StatusTemplateRow({
   const [editMsg,     setEditMsg]     = useState(template.message);
   const [editEnabled, setEditEnabled] = useState(template.isEnabled);
   const [editAdvanced, setEditAdvanced] = useState<AdvancedConfig>(advancedFromTemplate(template));
+  const [editRiderEnabled, setEditRiderEnabled] = useState(template.riderSmsEnabled ?? false);
+  const [editRiderMessage, setEditRiderMessage] = useState(template.riderMessage ?? "");
   const [editError,   setEditError]   = useState<string | null>(null);
 
   const statusLabel = STATUS_MAP[template.effectiveStatus] ?? template.statusLabel ?? template.effectiveStatus;
+  const isOutForDelivery = template.effectiveStatus === OUT_FOR_DELIVERY;
 
   const handleToggle = async () => {
     setToggling(true);
@@ -485,7 +616,7 @@ function StatusTemplateRow({
     setSaving(true);
     setEditError(null);
     try {
-      await onEdit(template.id, editMsg.trim(), editAdvanced);
+      await onEdit(template.id, editMsg.trim(), editEnabled, editAdvanced, { enabled: editRiderEnabled, message: editRiderMessage });
       setMode("view");
     } catch (err) {
       setEditError(err instanceof Error ? err.message : "Failed to save.");
@@ -510,16 +641,28 @@ function StatusTemplateRow({
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">SMS Message</label>
-            <MessageEditor value={editMsg} onChange={setEditMsg} />
+            <MessageEditor value={editMsg} onChange={setEditMsg} riderTokens={isOutForDelivery} />
           </div>
           <EnabledToggle value={editEnabled} onChange={setEditEnabled} />
+          {isOutForDelivery && (
+            <RiderSmsSection
+              enabled={editRiderEnabled}
+              message={editRiderMessage}
+              onEnabledChange={setEditRiderEnabled}
+              onMessageChange={setEditRiderMessage}
+            />
+          )}
           <AdvancedSection value={editAdvanced} onChange={setEditAdvanced} gabyTags={gabyTags} gabyTokens={gabyTokens} />
           {editError && (
             <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               <AlertTriangle className="w-4 h-4 shrink-0" />{editError}
             </div>
           )}
-          <FormActions saving={saving} canSave={!!editMsg.trim()} onCancel={() => { setMode("view"); setEditError(null); }} />
+          <FormActions
+            saving={saving}
+            canSave={!!editMsg.trim() && !(isOutForDelivery && editRiderEnabled && !editRiderMessage.trim())}
+            onCancel={() => { setMode("view"); setEditError(null); }}
+          />
         </form>
       </li>
     );
@@ -559,6 +702,11 @@ function StatusTemplateRow({
             + actions
           </span>
         )}
+        {isOutForDelivery && template.riderSmsEnabled && (
+          <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-50 text-orange-600 border border-orange-100">
+            <Bike className="w-3 h-3" /> + rider SMS
+          </span>
+        )}
       </div>
       <button
         type="button"
@@ -580,6 +728,8 @@ function StatusTemplateRow({
             setEditMsg(template.message);
             setEditEnabled(template.isEnabled);
             setEditAdvanced(advancedFromTemplate(template));
+            setEditRiderEnabled(template.riderSmsEnabled ?? false);
+            setEditRiderMessage(template.riderMessage ?? "");
             setMode("edit");
           }}
           className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="Edit"
@@ -669,9 +819,10 @@ function TagTemplatesSection({
     await pancakeService.updateTagTemplate(id, { isEnabled });
   };
 
-  const handleEdit = async (id: string, message: string, advanced: AdvancedConfig) => {
+  const handleEdit = async (id: string, message: string, isEnabled: boolean, advanced: AdvancedConfig) => {
     const updated = await pancakeService.updateTagTemplate(id, {
       message,
+      isEnabled,
       tagsToAdd:          advanced.tagsToAdd,
       tagsToRemove:       advanced.tagsToRemove,
       tokenMappings:      advanced.tokenMappings,
@@ -790,7 +941,7 @@ function TagTemplateRow({
 }: {
   template: PancakeTagTemplate;
   onToggle: (id: string, enabled: boolean) => Promise<void>;
-  onEdit: (id: string, message: string, advanced: AdvancedConfig) => Promise<void>;
+  onEdit: (id: string, message: string, isEnabled: boolean, advanced: AdvancedConfig) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   gabyTags: GabyTag[];
   gabyTokens: ApiToken[];
@@ -815,7 +966,7 @@ function TagTemplateRow({
     setSaving(true);
     setEditError(null);
     try {
-      await onEdit(template.id, editMsg.trim(), editAdvanced);
+      await onEdit(template.id, editMsg.trim(), editEnabled, editAdvanced);
       setMode("view");
     } catch (err) {
       setEditError(err instanceof Error ? err.message : "Failed to save.");

@@ -8,7 +8,8 @@ export type PancakeTokenKey =
   | "first_name" | "last_name" | "full_name" | "product"
   | "total_quantity" | "full_address" | "reward_point"
   | "reward_point_used" | "discount" | "money_to_collect"
-  | "printing_note" | "order_note";
+  | "printing_note" | "order_note"
+  | "customer_phone" | "rider_phone" | "rider_name" | "courier";
 
 export interface PancakeTokenMapping {
   pancakeToken:   PancakeTokenKey;
@@ -36,6 +37,9 @@ export interface PancakeTemplate {
   tagsToRemove: string[];
   tokenMappings: PancakeTokenMapping[];
   manualFieldUpdates: PancakeManualFieldUpdate[];
+  /** Out for Delivery only — also text the courier rider (J&T, SPX). */
+  riderSmsEnabled?: boolean;
+  riderMessage?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -49,6 +53,10 @@ export interface CreatePancakeTemplatePayload {
   tagsToRemove: string[];
   tokenMappings: PancakeTokenMapping[];
   manualFieldUpdates: PancakeManualFieldUpdate[];
+  /** Only allowed on the out_for_delivery template — other statuses return 400. */
+  riderSmsEnabled?: boolean;
+  /** Max 1000 chars. Required when riderSmsEnabled is true. */
+  riderMessage?: string | null;
 }
 
 export interface UpdatePancakeTemplatePayload {
@@ -58,6 +66,10 @@ export interface UpdatePancakeTemplatePayload {
   tagsToRemove?: string[];
   tokenMappings?: PancakeTokenMapping[];
   manualFieldUpdates?: PancakeManualFieldUpdate[];
+  /** Only allowed on the out_for_delivery template — other statuses return 400. */
+  riderSmsEnabled?: boolean;
+  /** Max 1000 chars. Required when riderSmsEnabled is true. */
+  riderMessage?: string | null;
 }
 
 // ── Tag templates ─────────────────────────────────────────────────────────────
