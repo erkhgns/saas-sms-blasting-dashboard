@@ -9,3 +9,4 @@ export * from "./report.types";
 export * from "./auth.types";
 export * from "./token.types";
 export * from "./device-log.types";
+export * from "./quickReply.types";

@@ -6,7 +6,7 @@ const ENV_API_KEY = import.meta.env.VITE_API_KEY ?? "";
 const API_TIMEOUT_MS = 15_000;
 
 // Routes that require x-api-key (ESP32 + frontend shared)
-const API_KEY_PREFIXES = ["/sms", "/users", "/contacts", "/analytics", "/inbox", "/device-logs", "/tags", "/tokens"];
+const API_KEY_PREFIXES = ["/sms", "/users", "/contacts", "/analytics", "/inbox", "/device-logs", "/tags", "/tokens", "/quick-replies"];
 
 // Only these specific auth routes are fully public (no headers needed).
 // Other /auth/* routes like /auth/change-password and /auth/api-key/regenerate

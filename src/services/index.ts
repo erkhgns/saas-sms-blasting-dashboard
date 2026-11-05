@@ -13,3 +13,4 @@ export * from "./device-logs.service";
 export * from "./tags.service";
 export * from "./tokens.service";
 export * from "./pancake.service";
+export * from "./quickReplies.service";

@@ -1,10 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Search, Send, MessageSquare, Loader2, UserPlus, X, Check, Tag, ChevronDown, Volume2, VolumeX } from "lucide-react";
-import { AvatarInitials, PrimaryButton } from "@/components/common";
+import { AvatarInitials, PrimaryButton, SegmentCounter } from "@/components/common";
 import { BRAND } from "@/utils";
 import { useInbox, useConversation } from "@/hooks";
 import { useTags } from "@/hooks/useTags";
 import { useTokens } from "@/hooks/useTokens";
+import { useQuickReplies } from "@/hooks/useQuickReplies";
+import { filterQuickReplies, findUnfilledTokens, resolveTemplate } from "@/utils/quickReplies";
+import { QuickReplyPicker } from "./QuickReplyPicker";
+import type { QuickReply } from "@/types";
 import { setViewingInboxPhone, requestInboxAlertsCheck, onInboxCheck } from "@/hooks/useInboxAlerts";
 import { isSoundMuted, setSoundMuted } from "@/utils/notificationSound";
 import { inboxService, messagesService, contactsService } from "@/services";
@@ -448,6 +452,8 @@ export function Inbox() {
   const [replyText, setReplyText]         = useState("");
   const [sending, setSending]             = useState(false);
   const [sendError, setSendError]         = useState<string | null>(null);
+  // Unfilled {{tokens}} found on the last send attempt — the next send goes out anyway
+  const [unfilledWarning, setUnfilledWarning] = useState<string[] | null>(null);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const messagesEndRef                    = useRef<HTMLDivElement>(null);
   const messagesScrollRef                 = useRef<HTMLDivElement>(null);
@@ -482,6 +488,39 @@ export function Inbox() {
   );
   const { tags: allTags } = useTags();
   const { tokens } = useTokens();
+  const { quickReplies, refetch: refetchQuickReplies } = useQuickReplies();
+
+  // ── Quick reply "/" picker ─────────────────────────────────────────────────
+  // Open while the reply starts with "/" — unless dismissed (Esc / click outside),
+  // which lasts until the leading "/" is gone or the conversation changes.
+  const replyRef  = useRef<HTMLTextAreaElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [qrDismissed, setQrDismissed] = useState(false);
+  const [qrHighlight, setQrHighlight] = useState(0);
+  const qrOpen  = replyText.startsWith("/") && !qrDismissed;
+  const qrQuery = qrOpen ? replyText.slice(1) : "";
+  const qrItems = useMemo(
+    () => (qrOpen ? filterQuickReplies(quickReplies, qrQuery) : []),
+    [qrOpen, qrQuery, quickReplies],
+  );
+
+  // First row highlighted on open and whenever the filter changes
+  useEffect(() => { setQrHighlight(qrItems.length ? 0 : -1); }, [qrQuery, qrItems.length]);
+
+  // Pick up replies added in Settings since the page loaded
+  useEffect(() => { if (qrOpen) void refetchQuickReplies(); }, [qrOpen, refetchQuickReplies]);
+
+  // Click outside the picker and the reply box dismisses it
+  useEffect(() => {
+    if (!qrOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (pickerRef.current?.contains(target) || replyRef.current?.contains(target)) return;
+      setQrDismissed(true);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [qrOpen]);
 
   const scrollToLatest = useCallback((behavior: ScrollBehavior) => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -588,11 +627,42 @@ export function Inbox() {
     setHasNewBelow(false);
     setReplyText("");
     setSendError(null);
+    setUnfilledWarning(null);
+    setQrDismissed(false);
   }, []);
+
+  const handleReplyChange = (value: string) => {
+    if (!value.startsWith("/")) setQrDismissed(false);
+    setReplyText(value);
+    setUnfilledWarning(null);
+  };
+
+  // Replace the whole reply ("/" + filter) with the message, tokens filled from the contact
+  const insertQuickReply = (reply: QuickReply) => {
+    const text = resolveTemplate(reply.message, conversation?.contact?.customFields, tokens);
+    setReplyText(text);
+    setQrDismissed(false);
+    setUnfilledWarning(null);
+    requestAnimationFrame(() => {
+      const el = replyRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(text.length, text.length);
+      el.scrollTop = el.scrollHeight;
+    });
+  };
 
   const handleSend = async () => {
     if (!replyText.trim() || !selectedPhone) return;
     if (!senderId) return;
+
+    // Unfilled {{tokens}} would reach the customer literally — warn once, then allow
+    const unfilled = findUnfilledTokens(replyText);
+    if (unfilled.length && !unfilledWarning) {
+      setUnfilledWarning(unfilled);
+      return;
+    }
+    setUnfilledWarning(null);
 
     setSending(true);
     setSendError(null);
@@ -616,6 +686,13 @@ export function Inbox() {
   };
 
   const handleReplyKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (qrOpen) {
+      // ↑ ↓ don't wrap; Enter only inserts (never sends or adds a newline) while the picker is open
+      if (e.key === "ArrowDown") { e.preventDefault(); if (qrItems.length) setQrHighlight((h) => Math.min(qrItems.length - 1, h + 1)); return; }
+      if (e.key === "ArrowUp")   { e.preventDefault(); if (qrItems.length) setQrHighlight((h) => Math.max(0, h - 1)); return; }
+      if (e.key === "Escape")    { e.preventDefault(); setQrDismissed(true); return; }
+      if (e.key === "Enter")     { e.preventDefault(); const r = qrItems[qrHighlight]; if (r) insertQuickReply(r); return; }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -876,18 +953,43 @@ export function Inbox() {
                   {sendError}
                 </div>
               )}
+              {unfilledWarning && (
+                <div className="mb-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                  This reply still has{" "}
+                  {unfilledWarning.map((t, i) => (
+                    <span key={t}>{i > 0 && ", "}<code className="font-mono">{t}</code></span>
+                  ))}
+                  {" "}— the customer would see it as-is. Edit the reply, or press Send again to send anyway.
+                </div>
+              )}
               <div className="flex items-end gap-3">
-                <textarea
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  onKeyDown={handleReplyKeyDown}
-                  placeholder="Type your reply… (Shift+Enter for new line)"
-                  rows={3}
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg resize-none text-sm"
-                  style={{ outline: "none" }}
-                  onFocus={(e) => Object.assign(e.target.style, { borderColor: BRAND.primary, boxShadow: "0 0 0 2px rgba(255,95,31,0.2)" })}
-                  onBlur={(e)  => Object.assign(e.target.style, { borderColor: "#d1d5db", boxShadow: "none" })}
-                />
+                <div className="relative flex-1 flex">
+                  {qrOpen && (
+                    <QuickReplyPicker
+                      items={qrItems}
+                      total={quickReplies.length}
+                      query={qrQuery}
+                      highlight={qrHighlight}
+                      onHighlight={setQrHighlight}
+                      onSelect={insertQuickReply}
+                      values={conversation?.contact?.customFields}
+                      tokens={tokens}
+                      pickerRef={pickerRef}
+                    />
+                  )}
+                  <textarea
+                    ref={replyRef}
+                    value={replyText}
+                    onChange={(e) => handleReplyChange(e.target.value)}
+                    onKeyDown={handleReplyKeyDown}
+                    placeholder="Type your reply, or / for quick replies… (Shift+Enter for new line)"
+                    rows={3}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg resize-none text-sm"
+                    style={{ outline: "none" }}
+                    onFocus={(e) => Object.assign(e.target.style, { borderColor: BRAND.primary, boxShadow: "0 0 0 2px rgba(255,95,31,0.2)" })}
+                    onBlur={(e)  => Object.assign(e.target.style, { borderColor: "#d1d5db", boxShadow: "none" })}
+                  />
+                </div>
                 <PrimaryButton
                   onClick={handleSend}
                   disabled={sending || !replyText.trim()}
@@ -900,7 +1002,12 @@ export function Inbox() {
                   {sending ? "Sending…" : "Send"}
                 </PrimaryButton>
               </div>
-              <div className="text-xs text-gray-400 mt-1.5">{replyText.length} / 160 characters</div>
+              <div className="flex items-center justify-between mt-1.5">
+                <SegmentCounter text={replyText} />
+                <span className="text-xs text-gray-400">
+                  Type <code className="font-mono bg-gray-100 px-1 rounded">/</code> for quick replies
+                </span>
+              </div>
             </div>
           </>
         )}

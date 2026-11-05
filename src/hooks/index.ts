@@ -14,5 +14,6 @@ export * from "./useSegments";
 export * from "./useSmsLogs";
 export * from "./useTokens";
 export * from "./useTags";
+export * from "./useQuickReplies";
 export * from "./useDeviceLogs";
 export * from "./useFormSubmissions";

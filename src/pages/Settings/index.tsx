@@ -4,12 +4,13 @@ import {
   Tag as TagIcon, Plus, Pencil, Trash2, X, Check,
   Key, Hash, Lock, Eye, EyeOff, Zap,
 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { PageHeader } from "@/components/common";
 import { authStore } from "@/utils/auth.store";
 import { authService } from "@/services/auth.service";
 import { tagsService } from "@/services/tags.service";
 import { tokensService } from "@/services/tokens.service";
+import { QuickRepliesSection } from "./QuickRepliesSection";
 import type { Tag, ApiToken, TokenDataType } from "@/types";
 
 /** Copies text — returns true if successful, false if both methods fail. */
@@ -963,6 +964,7 @@ function ChangePasswordSection() {
 
 export function Settings() {
   const navigate  = useNavigate();
+  const location  = useLocation();
   const storedKey = authStore.getApiKey();
   const senderId  = authStore.getUser()?.id ?? "";
 
@@ -973,6 +975,14 @@ export function Settings() {
   const [copiedMain,     setCopiedMain]     = useState(false);
   const [copyError,      setCopyError]      = useState(false);
   const [copiedSenderId, setCopiedSenderId] = useState(false);
+
+  // Deep link: /settings#quick-replies (used by the Inbox picker's empty state)
+  useEffect(() => {
+    if (!location.hash) return;
+    const id = location.hash.slice(1);
+    const t = setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    return () => clearTimeout(t);
+  }, [location.hash]);
 
   const handleCopyMain = async () => {
     const text = storedKey ?? "";
@@ -1136,6 +1146,9 @@ export function Settings() {
 
         {/* ── Token Management ─────────────────────────────────────────────── */}
         {senderId && <TokensSection senderId={senderId} />}
+
+        {/* ── Quick Replies ────────────────────────────────────────────────── */}
+        {senderId && <QuickRepliesSection />}
 
         {/* ── Auto Reply migration note ─────────────────────────────────────── */}
         <div className="flex items-center gap-3 px-5 py-3.5 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-800">
